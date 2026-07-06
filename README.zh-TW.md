@@ -124,6 +124,10 @@ npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0
 - 日誌在 `data/logs/weekly.log`；隨時可手動出刊：`npm run weekly`。
 - 解除排程：`launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
 
+### 期數與典藏
+
+每一期都有編號並永久留存：№0 是創刊預覽號、№1 是創刊號，之後為第 N 期。`send` 成功即封刊，下一次產出自動開新的一期並生成新封面。刊物累積在 `out/`（每期的網頁版＋email 版）、封面累積在 `assets/covers/`（每期一張），並有可瀏覽的典藏索引 `out/index.html`。某週封面渲染失敗時，沿用上一期封面、不擋出刊。
+
 ## 編輯原則
 
 - **知識性是硬門檻。** 娛樂八卦、彩券、購物促銷、活動報名、字典式快查，無論停留多久一律排除。
@@ -133,7 +137,6 @@ npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0
 ## Roadmap
 
 - 計分 v2：實讀訊號進入主排序；主題正規化
-- 期數編號與典藏（每一期保留自己的刊物與封面）
 - 策展 UI：挑選條目、加上你自己的觀點、選擇性對外發布
 - 發行通路：自有名單（SMTP/SendGrid）、Ghost/Buttondown 匯出
 

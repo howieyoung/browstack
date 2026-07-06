@@ -60,6 +60,15 @@ export function getDb(): Database.Database {
       value TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS issues (
+      number INTEGER PRIMARY KEY,
+      week_start INTEGER NOT NULL,
+      week_end INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      sent_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS captures (
       id INTEGER PRIMARY KEY,
       capture_id TEXT UNIQUE NOT NULL,

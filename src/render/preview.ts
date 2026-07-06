@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
+import { findCover, getCurrentIssue, listIssues } from "../issue.js";
 
 /**
  * 週刊渲染器 v2：知識型內容 ＋ 編輯摘要 ＋ 主題分組 ＋ 封面插畫。
@@ -124,16 +125,17 @@ const socialHtml = socialPosts
   })
   .join("\n");
 
-// 封面：優先用封面引擎產出的 PNG（npm run cover），退而用 SVG
-const coversDir = path.join(CONFIG.dataDir, "..", "assets", "covers");
-const pngPath = path.join(coversDir, "issue-0.png");
-const svgPath = path.join(coversDir, "issue-0.svg");
+const issue = getCurrentIssue();
+const issueLabel = `№${issue.number} · ${issue.title}`;
+
+// 封面：本期 PNG → 本期 SVG → 最近一期封面（渲染失敗不擋出刊）
+const coverPath = findCover(issue.number);
 let coverSvg = "";
-if (fs.existsSync(pngPath)) {
-  const b64 = fs.readFileSync(pngPath).toString("base64");
+if (coverPath?.endsWith(".png")) {
+  const b64 = fs.readFileSync(coverPath).toString("base64");
   coverSvg = `<img src="data:image/png;base64,${b64}" alt="本期封面插畫" style="width:100%;display:block" />`;
-} else if (fs.existsSync(svgPath)) {
-  coverSvg = fs.readFileSync(svgPath, "utf8");
+} else if (coverPath?.endsWith(".svg")) {
+  coverSvg = fs.readFileSync(coverPath, "utf8");
 }
 
 const html = `<!doctype html>
@@ -141,7 +143,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Browstack №0 — 創刊預覽號</title>
+<title>Browstack ${issueLabel}</title>
 <style>
   :root {
     --paper: #faf6ee; --paper-deep: #f1ebdd; --ink: #211c15; --muted: #8d8474;
@@ -206,7 +208,7 @@ const html = `<!doctype html>
 <body>
 <div class="sheet">
   <div class="nameplate">
-    <div class="np-row"><span>№0 · 創刊預覽號</span><span>${fmtDate(weekAgo)} — ${fmtDate(now)}</span></div>
+    <div class="np-row"><span>${issueLabel}</span><span>${fmtDate(weekAgo)} — ${fmtDate(now)}</span></div>
     <div class="np-title">Browstack</div>
     <div class="np-tagline">Your Personal Weekly Digest</div>
   </div>
@@ -242,7 +244,7 @@ const html = `<!doctype html>
   </section>
 
   <div class="colophon">
-    BROWSTACK №0 · 由你的瀏覽紀錄自動編輯<br />
+    BROWSTACK №${issue.number} · 由你的瀏覽紀錄自動編輯<br />
     資料未離開這台機器 · PUBLISHED FOR AN AUDIENCE OF ONE
   </div>
 </div>
@@ -251,7 +253,37 @@ const html = `<!doctype html>
 
 const outDir = path.join(CONFIG.dataDir, "..", "out");
 fs.mkdirSync(outDir, { recursive: true });
-const outPath = path.join(outDir, "browstack-issue-0.html");
+const outPath = path.join(outDir, `browstack-issue-${issue.number}.html`);
 fs.writeFileSync(outPath, html);
+
+// 典藏索引：out/index.html 列出歷來各期
+const archiveRows = listIssues()
+  .map((i) => {
+    const cover = findCover(i.number);
+    const coverLink = cover ? ` · <a href="../assets/covers/${path.basename(cover)}">封面</a>` : "";
+    const emailFile = `browstack-issue-${i.number}.email.html`;
+    const emailLink = fs.existsSync(path.join(outDir, emailFile)) ? ` · <a href="${emailFile}">email 版</a>` : "";
+    const status = i.sent_at ? `已寄出 ${new Date(i.sent_at * 1000).toLocaleDateString("zh-TW")}` : "編輯中";
+    return `<li><a href="browstack-issue-${i.number}.html"><b>№${i.number} · ${i.title}</b></a>
+      <span>${fmtDate(i.week_start)} — ${fmtDate(i.week_end)} · ${status}${coverLink}${emailLink}</span></li>`;
+  })
+  .join("\n");
+const indexHtml = `<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8" /><title>Browstack 典藏</title>
+<style>
+  body { background:#e6e1d5; font-family:"PingFang TC",sans-serif; color:#211c15; }
+  .sheet { max-width:640px; margin:40px auto; background:#faf6ee; padding:48px 56px; box-shadow:0 2px 40px rgba(60,50,30,.18); }
+  h1 { font-family:"Noto Serif TC",serif; font-style:italic; font-weight:900; font-size:40px; }
+  p.tag { font-size:11px; letter-spacing:.4em; color:#8d8474; text-transform:uppercase; margin:6px 0 28px; }
+  ul { list-style:none; padding:0; } li { padding:14px 0; border-top:1px dotted #d9d2c2; }
+  li a { color:#211c15; text-decoration:none; font-family:"Noto Serif TC",serif; font-size:18px; }
+  li a:hover { color:#b5361c; } li span { display:block; margin-top:4px; font-size:12px; color:#8d8474; }
+  li span a { font-size:12px; color:#b5361c; }
+</style></head>
+<body><div class="sheet"><h1>Browstack</h1><p class="tag">Archive · Your Personal Weekly Digest</p>
+<ul>${archiveRows}</ul></div></body></html>`;
+fs.writeFileSync(path.join(outDir, "index.html"), indexHtml);
+
 console.log(`已產出：${outPath}`);
-console.log(`本期選輯：文章 ${articles.length} 篇（${topicGroups.size} 個主題）、社群貼文 ${socialPosts.length} 則`);
+console.log(`本期 ${issueLabel}：文章 ${articles.length} 篇（${topicGroups.size} 個主題）、社群貼文 ${socialPosts.length} 則`);
+console.log(`典藏索引：${path.join(outDir, "index.html")}`);

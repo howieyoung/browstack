@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
+import { getCurrentIssue } from "../issue.js";
 
 /**
  * Email 版渲染器：讓週刊像一封真正的電子報寄進收件匣。
@@ -13,6 +14,7 @@ const DAYS = 7;
 const db = getDb();
 const now = Math.floor(Date.now() / 1000);
 const weekAgo = now - DAYS * 86400;
+const issue = getCurrentIssue();
 
 interface PageItem {
   title: string;
@@ -101,7 +103,7 @@ const html = `<!doctype html>
 <body style="margin:0;padding:0;background:#e6e1d5">
   <div style="max-width:600px;margin:0 auto;background:#faf6ee;font-family:${sans};color:${ink}">
     <div style="padding:32px 40px 20px;text-align:center">
-      <div style="font-family:${serif};font-size:13px;font-weight:700;color:${accent};letter-spacing:.12em">№0 · 創刊預覽號 · ${fmtDate(weekAgo)} — ${fmtDate(now)}</div>
+      <div style="font-family:${serif};font-size:13px;font-weight:700;color:${accent};letter-spacing:.12em">№${issue.number} · ${issue.title} · ${fmtDate(weekAgo)} — ${fmtDate(now)}</div>
       <div style="font-family:${serif};font-style:italic;font-weight:900;font-size:46px;line-height:1.1;margin-top:4px">Browstack</div>
       <div style="margin-top:8px;font-size:10px;letter-spacing:.45em;color:${muted};text-transform:uppercase">Your Personal Weekly Digest</div>
     </div>
@@ -118,7 +120,7 @@ const html = `<!doctype html>
       ${socialHtml}
     </div>
     <div style="padding:28px 40px 36px;border-top:3px double ${rule};text-align:center;font-size:11px;letter-spacing:.3em;color:${muted};line-height:2.2">
-      BROWSTACK №0 · 由你的瀏覽紀錄自動編輯<br/>資料未離開你的機器 · PUBLISHED FOR AN AUDIENCE OF ONE
+      BROWSTACK №${issue.number} · 由你的瀏覽紀錄自動編輯<br/>資料未離開你的機器 · PUBLISHED FOR AN AUDIENCE OF ONE
     </div>
   </div>
 </body>
@@ -126,6 +128,6 @@ const html = `<!doctype html>
 
 const outDir = path.join(CONFIG.dataDir, "..", "out");
 fs.mkdirSync(outDir, { recursive: true });
-const outPath = path.join(outDir, "browstack-issue-0.email.html");
+const outPath = path.join(outDir, `browstack-issue-${issue.number}.email.html`);
 fs.writeFileSync(outPath, html);
 console.log(`已產出 email 版：${outPath}（${articles.length} 篇深讀、${socialPosts.length} 則迴響）`);

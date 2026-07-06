@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
+import { getCurrentIssue } from "../issue.js";
 import { getImageProvider } from "../llm/image.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
 
@@ -30,7 +31,7 @@ Absolutely no text, letters, numbers or logos anywhere in the artwork.
 Portrait format. Lineage: Adrian Tomine's urban observation x Malika Favre's bold negative space x Christoph Niemann's conceptual wit.`;
 
 const DAYS = 7;
-const issueNo = Number(process.argv[2] ?? 0);
+const issueNo = process.argv[2] !== undefined ? Number(process.argv[2]) : getCurrentIssue().number;
 
 const db = getDb();
 const weekAgo = Math.floor(Date.now() / 1000) - DAYS * 86400;

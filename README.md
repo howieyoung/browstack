@@ -125,6 +125,10 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Logs: `data/logs/weekly.log`. Manual run anytime: `npm run weekly`.
 - Uninstall: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
 
+### Issues & archive
+
+Every issue is numbered and kept: №0 is the preview issue, №1 the inaugural issue, then 第 N 期. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
+
 ## Editorial principles
 
 - **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, event signups and dictionary-style quick lookups are excluded regardless of dwell time.
@@ -134,7 +138,6 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 ## Roadmap
 
 - Scoring v2: active-reading signals into ranking; topic normalization
-- Issue numbering & archive (each week keeps its own issue and cover)
 - Curation UI: pick items, add your own takes, publish selected content outward
 - Publishing targets: own list via SMTP/SendGrid, Ghost/Buttondown export
 

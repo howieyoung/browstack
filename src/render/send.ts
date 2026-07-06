@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import nodemailer from "nodemailer";
 import { CONFIG } from "../config.js";
+import { findCover, getCurrentIssue, markIssueSent } from "../issue.js";
 
 /**
  * 寄出本期週刊：Gmail SMTP ＋應用程式密碼（存 macOS Keychain，service: browstack-smtp）。
@@ -27,17 +28,18 @@ function getSmtpPassword(): string {
   );
 }
 
-const emailPath = path.join(CONFIG.dataDir, "..", "out", "browstack-issue-0.email.html");
+const issue = getCurrentIssue();
+const emailPath = path.join(CONFIG.dataDir, "..", "out", `browstack-issue-${issue.number}.email.html`);
 if (!fs.existsSync(emailPath)) {
   console.error("找不到 email 版，先跑 npm run email");
   process.exit(1);
 }
 let html = fs.readFileSync(emailPath, "utf8");
 
-// 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）
-const coverPath = path.join(CONFIG.dataDir, "..", "assets", "covers", "issue-0.png");
+// 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）；svg 無法內嵌，僅接受 png
+const coverPath = findCover(issue.number);
 const attachments: Array<{ filename: string; path: string; cid: string }> = [];
-if (fs.existsSync(coverPath)) {
+if (coverPath?.endsWith(".png")) {
   attachments.push({ filename: "cover.png", path: coverPath, cid: "issue-cover" });
   html = html.replace(
     "<!--COVER-->",
@@ -55,8 +57,9 @@ const transporter = nodemailer.createTransport({
 const info = await transporter.sendMail({
   from: `Browstack <${CONFIG.email.from}>`,
   to: CONFIG.email.to,
-  subject: "Browstack №0 — 創刊預覽號｜你的一週閱讀，成刊了",
+  subject: `Browstack №${issue.number} — ${issue.title}｜你的一週閱讀，成刊了`,
   html,
   attachments,
 });
-console.log(`已寄出：${info.messageId} → ${CONFIG.email.to}`);
+markIssueSent(issue.number); // 封刊：下一次產出自動開新的一期
+console.log(`已寄出 №${issue.number}：${info.messageId} → ${CONFIG.email.to}`);
