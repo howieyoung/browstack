@@ -1,0 +1,127 @@
+# Browstack
+
+**Browser + Substack** — turn your own browsing history into a beautifully designed, privacy-first personal weekly digest, delivered to your inbox like a real newsletter.
+
+[繁體中文說明 → README.zh-TW.md](README.zh-TW.md)
+
+<p align="center">
+  <img src="docs/images/sample-cover.jpg" width="420" alt="Sample engine-generated cover in The New Yorker illustration tradition" />
+  <br/>
+  <em>Every issue gets a freshly generated cover in The New Yorker illustration tradition,<br/>themed on what you actually read that week.</em>
+</p>
+
+## Why
+
+You tap articles from social feeds all day, never finish them, and they pile up in bookmarks you'll never revisit. Browstack's core insight: **browsing itself is the input**. Your history already lives on your machine — no "save" button needed. Browstack reads it locally, keeps only knowledge-type content, summarizes each piece well enough to replace re-reading it, and typesets everything into a weekly issue worth keeping.
+
+**You are your own publisher.** Every issue is private by default — publishing anything outward is always an explicit, per-item opt-in.
+
+## How it works
+
+```
+Chrome History ─┐
+                ├→ classify → enrich → cover → render → send
+Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (SMTP,
+ (true reading       filter +     summar-   director  topics,      inline
+  signals)           privacy      ies)      + image    summaries)   cover)
+                     firewall)              engine)
+```
+
+- **Ingest** — reads Chrome's local History database (a copy — Chrome locks the original). If Chrome Sync is on, your phone's browsing is included automatically.
+- **Extension (MV3)** — counts *active* reading seconds (tab visible + recent interaction) and captures article text at the moment you read it, including behind login walls. Talks **only to `127.0.0.1`** — nothing ever leaves your machine.
+- **Classify** — hard rule: non-knowledge content (gossip, lotteries, promos, quick lookups) never makes the issue, no matter how long you lingered. Sensitive pages (banking, mail, auth, government services) are never even stored.
+- **Enrich** — an LLM writes three bullets + one takeaway per article, and a one-line editorial context per social post.
+- **Cover** — an LLM art director distills the week into a single visual metaphor, then an image engine renders it under a fixed art direction (flat gouache, limited palette, generous negative space — no text in the art).
+- **Render & send** — magazine nameplate (issue №, date range, wordmark, tagline), topic-grouped summaries, weekly stats. Sent via your own Gmail SMTP with the cover inlined as a CID attachment.
+
+## Privacy principles
+
+1. **Local-first.** Parsing, filtering, ranking all happen on your machine. The extension's only network peer is `127.0.0.1`.
+2. **Filter before any cloud call.** Only extracted article text of pages classified as content ever reaches an LLM. Banking, mail, auth, and government pages never leave the machine — they are not even written to Browstack's own database.
+3. **Secrets live in the macOS Keychain**, not in dotfiles or env exports.
+4. **Publishing is opt-in per item.** There is no auto-publish path.
+
+## Requirements
+
+- macOS 13+ (Keychain + `sips` are used; Linux/Windows would need small substitutions)
+- Google Chrome (Chrome Sync recommended — brings mobile browsing into the digest)
+- Node.js 20+
+- An LLM: [Claude Code CLI](https://claude.com/claude-code) (uses your existing subscription) **or** an Anthropic API key
+- Optional: an OpenAI API key (cover image rendering), a Gmail account (email delivery)
+
+## Quick start
+
+```bash
+git clone https://github.com/<you>/browstack.git
+cd browstack
+npm install                 # also creates src/shared/userConfig.ts from the template
+$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, personal noise domains
+
+npm run ingest              # import & classify your Chrome history (local only)
+npm run stats               # sanity check: classification stats + top candidates
+npm run enrich              # LLM: knowledge filter + summaries  (see LLM setup below)
+npm run cover               # generate this issue's cover        (see OpenAI setup below)
+npm run preview             # writes out/browstack-issue-0.html — open it!
+npm run send                # email the issue to yourself        (see Gmail setup below)
+```
+
+### Extension (true reading signals)
+
+```bash
+npm run build:ext
+npm run serve               # local receiver on 127.0.0.1:8787 — keep it running
+```
+
+Then open `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select the `extension/` folder. Pages you actively read for 30+ seconds are captured (text + scroll depth + active seconds) and land in the local database. The popup shows receiver status and queue length.
+
+## One-time setup guides
+
+### 1 · LLM provider
+
+**Option A — Claude Code CLI (default, no API key to manage):**
+
+```bash
+claude /login    # once, in a terminal
+```
+
+**Option B — Anthropic API:** set `llm.provider: "anthropic"` in `src/config.ts` and export `ANTHROPIC_API_KEY`.
+
+### 2 · OpenAI key for cover rendering (macOS Keychain)
+
+First, at [platform.openai.com](https://platform.openai.com) create a **dedicated project + key with a monthly spending cap** (one image per week costs very little — a $10 cap is generous). Then store it in the Keychain — note the **leading space** which keeps the command out of your shell history:
+
+```bash
+ security add-generic-password -s browstack-openai -a "$USER" -w '<your-key>' -U
+```
+
+`npm run cover` finds it automatically (env var `OPENAI_API_KEY` takes precedence if set). Never put keys in `~/.zshrc` — plaintext on disk, inherited by every process, and dotfile syncing is the classic leak path.
+
+### 3 · Gmail SMTP for delivery (macOS Keychain)
+
+You only do this once:
+
+1. [Google Account → Security → 2-Step Verification → App passwords](https://myaccount.google.com/apppasswords) — generate one (name it anything, e.g. `browstack`).
+2. In a terminal (note the leading space):
+
+```bash
+ security add-generic-password -s browstack-smtp -a you@example.com -w '<16-char app password>' -U
+```
+
+3. `npm run send` — issue №0 arrives in your inbox, cover inlined at the top. (Email clients reject `data:` URI images but accept CID attachments, which is what Browstack uses.)
+
+## Editorial principles
+
+- **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, event signups and dictionary-style quick lookups are excluded regardless of dwell time.
+- **Summaries must replace the original.** Three bullets ≤ 42 chars + one takeaway ≤ 32 chars per article.
+- **The issue is an artifact.** Fixed palette, serif nameplate, issue numbering — beauty gets it opened, content quality gets it finished.
+
+## Roadmap
+
+- Scoring v2: active-reading signals into ranking; topic normalization & dedup
+- One-command weekly automation (`ingest → enrich → cover → send` on a schedule)
+- Curation UI: pick items, add your own takes, publish selected content outward
+- Publishing targets: own list via SMTP/SendGrid, Ghost/Buttondown export
+
+## License
+
+[MIT](LICENSE)

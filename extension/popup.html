@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font: 13px/1.6 -apple-system, "PingFang TC", sans-serif; width: 260px; margin: 12px; color: #222; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    .row { display: flex; justify-content: space-between; margin: 2px 0; }
+    .ok { color: #2e7d32; }
+    .bad { color: #c62828; }
+    .privacy { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Browstack</h1>
+  <div class="row"><span>本機服務</span><span id="server">檢查中…</span></div>
+  <div class="row"><span>待送佇列</span><span id="queue">–</span></div>
+  <div class="row"><span>累計擷取</span><span id="sent">–</span></div>
+  <p class="privacy">資料只送往你電腦上的 127.0.0.1，永不進雲端。</p>
+  <script src="dist/popup.js"></script>
+</body>
+</html>

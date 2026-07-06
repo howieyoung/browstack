@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Browstack capture",
+  "version": "0.1.0",
+  "description": "本機優先的閱讀訊號擷取。資料只送往你電腦上的 127.0.0.1，永不進雲端。",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["dist/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "browstack"
+  }
+}

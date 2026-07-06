@@ -1,0 +1,14 @@
+# Personal data — never commit / 個人資料，永不進版控
+data/
+out/
+assets/covers/
+src/shared/userConfig.ts
+.env
+
+# Local tooling
+.claude/
+node_modules/
+extension/dist/
+dist/
+*.log
+.DS_Store
