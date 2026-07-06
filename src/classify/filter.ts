@@ -37,6 +37,7 @@ const NOISE_HOST = [
   /^(platform|analytics|status|billing)\./, // 開發者主控台、帳務、監控
   /console\.aws\.amazon\.com$/,
   /(^|\.)(sentry\.io|discord\.com|canva\.com|figma\.com|notion\.so|slack\.com)$/, // 工作工具
+  /(^|\.)(wikipedia\.org|wiktionary\.org|hinative\.com|moedict\.tw)$/, // 百科/字典＝快查行為，不是閱讀
 ];
 
 const SOCIAL_PERMALINK: Array<{ host: RegExp; path: RegExp }> = [

@@ -108,6 +108,22 @@ claude /login    # 在終端機執行一次即可
 
 3. `npm run send` → 週刊連封面一起寄進你的收件匣。（Email client 不吃 `data:` URI 圖片、但吃 CID 附件——Browstack 用的正是後者。）
 
+### 4 · 每週自動出刊（launchd）
+
+一行指令把完整流程——`ingest → enrich → cover → send`——排成 macOS LaunchAgent：
+
+```bash
+npm run schedule:weekly                        # 預設每週六 08:17
+npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0–6，0 = 週日）
+```
+
+- 在你登入的使用者 session 中執行，因此 Keychain（LLM／OpenAI／SMTP 金鑰）都可用。
+- 排程時間 Mac 在睡眠？launchd 會在下次喚醒時補跑。
+- 封面渲染失敗（例如未設 OpenAI 金鑰）不會擋出刊——沿用上一張封面。
+- 內建品管：擷取空殼（正文 < 300 字）與重複社群貼文自動降級；百科／字典快查一律不入選。
+- 日誌在 `data/logs/weekly.log`；隨時可手動出刊：`npm run weekly`。
+- 解除排程：`launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
+
 ## 編輯原則
 
 - **知識性是硬門檻。** 娛樂八卦、彩券、購物促銷、活動報名、字典式快查，無論停留多久一律排除。
@@ -116,8 +132,8 @@ claude /login    # 在終端機執行一次即可
 
 ## Roadmap
 
-- 計分 v2：實讀訊號進入主排序；主題正規化與內容去重
-- 一鍵週更自動化（排程執行 `ingest → enrich → cover → send`）
+- 計分 v2：實讀訊號進入主排序；主題正規化
+- 期數編號與典藏（每一期保留自己的刊物與封面）
 - 策展 UI：挑選條目、加上你自己的觀點、選擇性對外發布
 - 發行通路：自有名單（SMTP/SendGrid）、Ghost/Buttondown 匯出
 

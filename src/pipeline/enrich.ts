@@ -75,8 +75,9 @@ export async function classifyCandidates(candidates: Candidate[]): Promise<Enric
   const list = candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, host: new URL(c.url).hostname }));
   const reply = await provider.complete({
     system:
-      "你是 browstack 個人週刊的選題編輯。只收錄知識型內容：科技、AI、產業分析、商業洞察、深度公共議題、專業知識、有觀點或資訊價值的社群貼文。" +
-      "一律排除：娛樂八卦、彩券、購物促銷、會員活動、網站專區或列表頁（非單篇內容）、純聊天或情緒抒發、廣告宣傳頁。",
+      "你是 Browstack 個人週刊的選題編輯。只收錄知識型內容：科技、AI、產業分析、商業洞察、深度公共議題、專業知識、有觀點或資訊價值的社群貼文。" +
+      "一律排除：娛樂八卦、彩券、購物促銷、會員活動、網站專區或列表頁（非單篇內容）、純聊天或情緒抒發、廣告宣傳頁、" +
+      "以及所有「快查行為」——百科條目、字典查詢、單字問答、天氣、對獎，這些是查資料不是閱讀。",
     prompt:
       `判斷以下候選內容，回傳 JSON array，每項格式 {"id": number, "is_knowledge": boolean, "topic": "2~6字中文主題標籤"}（非知識型的 topic 給 null）。只輸出 JSON。\n\n` +
       JSON.stringify(list, null, 1),
@@ -130,9 +131,14 @@ export async function summarizeKnowledgePages(): Promise<number> {
     )
     .all(weekAgo) as Array<{ id: number; title: string; content_text: string | null }>;
   const saveSummary = db.prepare("UPDATE pages SET summary = ? WHERE id = ?");
+  const demote = db.prepare("UPDATE pages SET is_knowledge = 0 WHERE id = ?");
   let done = 0;
   for (const a of articles) {
-    if (!a.content_text) continue;
+    // 品管：正文太短＝擷取失敗的空殼，寧缺勿濫，直接降級
+    if (!a.content_text || a.content_text.length < 300) {
+      demote.run(a.id);
+      continue;
+    }
     const reply = await provider.complete({
       system: "你是週刊編輯，把文章濃縮成足以取代原文閱讀的摘要。",
       prompt:
@@ -145,13 +151,34 @@ export async function summarizeKnowledgePages(): Promise<number> {
   }
 
   // 社群貼文：title 已攜帶全文 → 一句脈絡
-  const posts = db
-    .prepare(
-      `SELECT id, title FROM pages
+  const normalizePost = (t: string) => t.replace(/^\(\d+\)\s*/, "").slice(0, 60);
+  const existingPosts = new Set(
+    (
+      db
+        .prepare(
+          "SELECT title FROM pages WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL AND last_seen > ?",
+        )
+        .all(weekAgo) as Array<{ title: string }>
+    ).map((p) => normalizePost(p.title)),
+  );
+  const posts = (
+    db
+      .prepare(
+        `SELECT id, title FROM pages
         WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NULL AND last_seen > ? AND LENGTH(title) >= 40
         LIMIT 8`,
-    )
-    .all(weekAgo) as Array<{ id: number; title: string }>;
+      )
+      .all(weekAgo) as Array<{ id: number; title: string }>
+  ).filter((p) => {
+    // 品管：同一貼文常有多個 URL（分享路徑不同），內容重複即降級
+    const key = normalizePost(p.title);
+    if (existingPosts.has(key)) {
+      demote.run(p.id);
+      return false;
+    }
+    existingPosts.add(key);
+    return true;
+  });
   if (posts.length > 0) {
     const reply = await provider.complete({
       system: "你是週刊編輯。",

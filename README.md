@@ -109,6 +109,22 @@ You only do this once:
 
 3. `npm run send` — issue №0 arrives in your inbox, cover inlined at the top. (Email clients reject `data:` URI images but accept CID attachments, which is what Browstack uses.)
 
+### 4 · Weekly automation (launchd)
+
+One command schedules the full run — `ingest → enrich → cover → send` — as a macOS LaunchAgent:
+
+```bash
+npm run schedule:weekly                        # every Saturday 08:17 by default
+npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0–6, 0 = Sunday)
+```
+
+- Runs in your logged-in user session, so the Keychain (LLM/OpenAI/SMTP secrets) is available.
+- If your Mac is asleep at the scheduled time, launchd runs the job on next wake.
+- A failed cover render (e.g. missing OpenAI key) doesn't block the issue — the previous cover is reused.
+- Built-in quality guards: extraction stubs (< 300 chars) and duplicate social posts are auto-demoted; encyclopedia/dictionary lookups never qualify.
+- Logs: `data/logs/weekly.log`. Manual run anytime: `npm run weekly`.
+- Uninstall: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
+
 ## Editorial principles
 
 - **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, event signups and dictionary-style quick lookups are excluded regardless of dwell time.
@@ -117,8 +133,8 @@ You only do this once:
 
 ## Roadmap
 
-- Scoring v2: active-reading signals into ranking; topic normalization & dedup
-- One-command weekly automation (`ingest → enrich → cover → send` on a schedule)
+- Scoring v2: active-reading signals into ranking; topic normalization
+- Issue numbering & archive (each week keeps its own issue and cover)
 - Curation UI: pick items, add your own takes, publish selected content outward
 - Publishing targets: own list via SMTP/SendGrid, Ghost/Buttondown export
 

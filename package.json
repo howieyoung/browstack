@@ -19,6 +19,8 @@
     "cover": "tsx src/render/cover.ts",
     "email": "tsx src/render/email.ts",
     "send": "tsx src/render/email.ts && tsx src/render/send.ts",
+    "weekly": "node scripts/weekly.mjs",
+    "schedule:weekly": "node scripts/install-weekly.mjs",
     "build:ext": "esbuild extension/src/content.ts extension/src/background.ts extension/src/popup.ts --bundle --outdir=extension/dist --format=iife --target=chrome120 --log-level=warning",
     "typecheck": "tsc --noEmit && tsc -p extension --noEmit"
   },
