@@ -128,12 +128,13 @@ const socialHtml = socialPosts
 const issue = getCurrentIssue();
 const issueLabel = `№${issue.number} · ${issue.title}`;
 
-// 封面：本期 PNG → 本期 SVG → 最近一期封面（渲染失敗不擋出刊）
+// 封面：本期 png/jpg/svg → 最近一期封面 → 隨庫預設封面（渲染失敗不擋出刊）
 const coverPath = findCover(issue.number);
 let coverSvg = "";
-if (coverPath?.endsWith(".png")) {
+if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
+  const mime = coverPath.endsWith(".jpg") ? "image/jpeg" : "image/png";
   const b64 = fs.readFileSync(coverPath).toString("base64");
-  coverSvg = `<img src="data:image/png;base64,${b64}" alt="本期封面插畫" style="width:100%;display:block" />`;
+  coverSvg = `<img src="data:${mime};base64,${b64}" alt="本期封面插畫" style="width:100%;display:block" />`;
 } else if (coverPath?.endsWith(".svg")) {
   coverSvg = fs.readFileSync(coverPath, "utf8");
 }

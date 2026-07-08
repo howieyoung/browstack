@@ -36,11 +36,12 @@ if (!fs.existsSync(emailPath)) {
 }
 let html = fs.readFileSync(emailPath, "utf8");
 
-// 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）；svg 無法內嵌，僅接受 png
+// 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）；svg 無法內嵌，接受 png/jpg
 const coverPath = findCover(issue.number);
 const attachments: Array<{ filename: string; path: string; cid: string }> = [];
-if (coverPath?.endsWith(".png")) {
-  attachments.push({ filename: "cover.png", path: coverPath, cid: "issue-cover" });
+if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
+  const filename = coverPath.endsWith(".jpg") ? "cover.jpg" : "cover.png";
+  attachments.push({ filename, path: coverPath, cid: "issue-cover" });
   html = html.replace(
     "<!--COVER-->",
     `<img src="cid:issue-cover" alt="本期封面" style="width:100%;display:block;border-top:3px double #d9d2c2" />`,

@@ -66,25 +66,34 @@ export function listIssues(): Issue[] {
   return db.prepare("SELECT * FROM issues ORDER BY number DESC").all() as Issue[];
 }
 
+const COVER_EXTS = ["png", "jpg", "svg"] as const;
+
 /**
- * 本期封面檔案：優先 issue-N.png → issue-N.svg → 最近一期的封面（png 優先）。
- * 封面渲染失敗時沿用上一張，不擋出刊。
+ * 本期封面檔案：優先 issue-N.(png|jpg|svg) → 最近一期的封面（點陣圖優先）
+ * → 隨庫附帶的預設封面（assets/cover-default.jpg，即創刊號封面）。
+ * 全新 clone 尚未跑過 cover、或某週渲染失敗時，都能有一張完整封面，不擋出刊。
  */
 export function findCover(n: number): string | null {
-  const dir = path.join(CONFIG.dataDir, "..", "assets", "covers");
-  for (const ext of ["png", "svg"]) {
+  const assetsRoot = path.join(CONFIG.dataDir, "..", "assets");
+  const dir = path.join(assetsRoot, "covers");
+  const defaultCover =
+    COVER_EXTS.map((e) => path.join(assetsRoot, `cover-default.${e}`)).find((p) => fs.existsSync(p)) ?? null;
+  const orDefault = (p: string | null) => p ?? defaultCover;
+
+  for (const ext of COVER_EXTS) {
     const exact = path.join(dir, `issue-${n}.${ext}`);
     if (fs.existsSync(exact)) return exact;
   }
-  if (!fs.existsSync(dir)) return null;
+  if (!fs.existsSync(dir)) return orDefault(null);
   const num = (f: string) => Number(f.match(/^issue-(\d+)\./)?.[1] ?? -1);
+  const isRaster = (f: string) => f.endsWith(".png") || f.endsWith(".jpg");
   const candidates = fs
     .readdirSync(dir)
-    .filter((f) => /^issue-\d+\.(png|svg)$/.test(f))
-    .sort((a, b) => num(b) - num(a) || (a.endsWith(".png") ? -1 : 1));
-  const png = candidates.find((f) => f.endsWith(".png"));
-  const pick = png ?? candidates[0];
-  return pick ? path.join(dir, pick) : null;
+    .filter((f) => /^issue-\d+\.(png|jpg|svg)$/.test(f))
+    .sort((a, b) => num(b) - num(a) || (isRaster(a) ? -1 : 1));
+  const raster = candidates.find(isRaster);
+  const pick = raster ?? candidates[0];
+  return orDefault(pick ? path.join(dir, pick) : null);
 }
 
 // 單期時代的存量登記：issue-0 已產出並寄出過 → 記為已封刊，下一期從 №1 開始

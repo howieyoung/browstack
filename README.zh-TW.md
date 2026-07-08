@@ -1,14 +1,26 @@
 # Browstack
 
-**Browser + Substack** — 把你自己的瀏覽紀錄，變成一份設計精緻、隱私優先的個人週刊，像真正的電子報一樣寄進你的收件匣。
+**繁體中文** · [English → README.md](README.md)
 
-[English README → README.md](README.md)
+**Browser + Substack** — 把你自己的瀏覽紀錄，變成一份設計精緻、隱私優先的個人週刊，像真正的電子報一樣寄進你的收件匣。
 
 <p align="center">
   <img src="docs/images/sample-cover.jpg" width="420" alt="封面引擎以 New Yorker 插畫傳統生成的範例封面" />
   <br/>
   <em>每一期都有全新生成的封面——以 The New Yorker 的插畫傳統，<br/>把你那一週真正讀過的主題化為一個視覺隱喻。</em>
 </p>
+
+> ### ⚡ 最短路徑：三分鐘看到你的第 0 期
+>
+> ```bash
+> git clone https://github.com/howieyoung/browstack.git && cd browstack
+> npm install                          # 自動建立你的個人設定檔
+> claude /login                        # 用你的 Claude 訂閱當 LLM（或改用 API key）
+> npm run ingest && npm run enrich && npm run preview
+> open out/browstack-issue-0.html      # 你的創刊預覽號！
+> ```
+>
+> 這五步**不需要任何付費 API key**：用 Chrome 既有紀錄、Claude Code CLI 免額外金鑰、封面用隨庫附帶的預設插畫。想要 AI 生成專屬封面（OpenAI）與 email 自動寄送（Gmail）再看下方「一次性設定指南」即可。
 
 ## 為什麼做這個
 
@@ -85,7 +97,14 @@ claude /login    # 在終端機執行一次即可
 
 **方案 B — Anthropic API：** 把 `src/config.ts` 的 `llm.provider` 改為 `"anthropic"`，並提供 `ANTHROPIC_API_KEY` 環境變數。
 
-### 2 · 封面渲染的 OpenAI 金鑰（macOS Keychain）
+### 2 · 封面生成金鑰（onboarding 時就設定）
+
+**封面是讓每一期「活起來」的關鍵——請務必設定。** 全新 clone 隨庫附帶一張預設封面（`assets/cover-default.jpg`，即創刊號的封面藝術），所以你永遠不會沒有封面；但**每一期都會沿用同一張圖**。想讓每期依那一週真正讀過的內容生成**專屬封面**，需要兩把金鑰：
+
+- **一個 LLM（藝術總監）**——就是步驟 1 已設好的 Claude Code CLI 或 Anthropic API。它讀本週主題、設計出單一視覺隱喻與出圖 prompt。
+- **一把 OpenAI 金鑰（渲染器）**——用 `gpt-image-1` 把 prompt 畫成完成的插畫。
+
+沒有 OpenAI 金鑰時你仍會得到封面概念文字，但不會有新圖，於是沿用預設封面。**設好 OpenAI 金鑰，每一期才會有自己的封面。**
 
 先到 [platform.openai.com](https://platform.openai.com) **建立專屬 Project 與金鑰，並設每月花費上限**（每週一張圖花費極低，$10 上限已非常寬裕）。然後存進 Keychain——注意指令**開頭加一個空格**，可避免金鑰被寫進 shell 歷史：
 

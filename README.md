@@ -1,8 +1,10 @@
 # Browstack
 
+**English** · [**繁體中文說明（完整）→ README.zh-TW.md**](README.zh-TW.md)
+
 **Browser + Substack** — turn your own browsing history into a beautifully designed, privacy-first personal weekly digest, delivered to your inbox like a real newsletter.
 
-[繁體中文說明 → README.zh-TW.md](README.zh-TW.md)
+> 🇹🇼 中文使用者：完整的繁體中文說明在 **[README.zh-TW.md](README.zh-TW.md)**，包含逐步設定與「最短路徑跑出第 0 期」。
 
 <p align="center">
   <img src="docs/images/sample-cover.jpg" width="420" alt="Sample engine-generated cover in The New Yorker illustration tradition" />
@@ -15,6 +17,18 @@
 You tap articles from social feeds all day, never finish them, and they pile up in bookmarks you'll never revisit. Browstack's core insight: **browsing itself is the input**. Your history already lives on your machine — no "save" button needed. Browstack reads it locally, keeps only knowledge-type content, summarizes each piece well enough to replace re-reading it, and typesets everything into a weekly issue worth keeping.
 
 **You are your own publisher.** Every issue is private by default — publishing anything outward is always an explicit, per-item opt-in.
+
+> ### ⚡ Fastest path: see your issue №0 in three minutes
+>
+> ```bash
+> git clone https://github.com/howieyoung/browstack.git && cd browstack
+> npm install                          # creates your personal config file
+> claude /login                        # use your Claude subscription as the LLM (or an API key)
+> npm run ingest && npm run enrich && npm run preview
+> open out/browstack-issue-0.html      # your preview issue!
+> ```
+>
+> These five steps need **no paid API key**: your existing Chrome history, the Claude Code CLI (no extra key), and a bundled default cover. Add an AI-generated cover (OpenAI) and email delivery (Gmail) later via the one-time setup guides below.
 
 ## How it works
 
@@ -86,9 +100,16 @@ claude /login    # once, in a terminal
 
 **Option B — Anthropic API:** set `llm.provider: "anthropic"` in `src/config.ts` and export `ANTHROPIC_API_KEY`.
 
-### 2 · OpenAI key for cover rendering (macOS Keychain)
+### 2 · Cover generation keys (do this during onboarding)
 
-First, at [platform.openai.com](https://platform.openai.com) create a **dedicated project + key with a monthly spending cap** (one image per week costs very little — a $10 cap is generous). Then store it in the Keychain — note the **leading space** which keeps the command out of your shell history:
+**The cover is what makes each issue feel alive — set this up.** A fresh clone ships with a bundled default cover (`assets/cover-default.jpg`, the inaugural issue's art) so you're never cover-less, but **every issue would reuse that same image**. To get a *unique* cover generated from each week's actual reading, you need two keys:
+
+- **An LLM** (the *art director*) — the Claude Code CLI or Anthropic API you already set up in step 1. It reads the week's topics and designs one visual metaphor + an image prompt.
+- **An OpenAI key** (the *renderer*) — turns that prompt into the finished illustration via `gpt-image-1`.
+
+Without the OpenAI key you still get the concept text, but no new image — so the default cover is reused. **Set the OpenAI key so each week gets its own cover.**
+
+At [platform.openai.com](https://platform.openai.com) create a **dedicated project + key with a monthly spending cap** (one image per week costs very little — a $10 cap is generous). Then store it in the Keychain — note the **leading space** which keeps the command out of your shell history:
 
 ```bash
  security add-generic-password -s browstack-openai -a "$USER" -w '<your-key>' -U
