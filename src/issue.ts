@@ -57,7 +57,16 @@ export function getCurrentIssue(): Issue {
 }
 
 export function markIssueSent(n: number): void {
-  getDb().prepare("UPDATE issues SET sent_at = ? WHERE number = ?").run(Math.floor(Date.now() / 1000), n);
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare("UPDATE issues SET sent_at = ? WHERE number = ?").run(Math.floor(Date.now() / 1000), n);
+    // 封刊：本期選用的頁面標記為「已刊登」，之後任何一期都不再入選
+    // （否則用戶回頭讀自己的週刊，內容會在下週再次被推薦，形成自我迴圈）
+    db.prepare(
+      `UPDATE pages SET published_in = ?
+        WHERE id IN (SELECT page_id FROM issue_items WHERE issue_number = ?)`,
+    ).run(n, n);
+  })();
 }
 
 export function listIssues(): Issue[] {
@@ -66,30 +75,31 @@ export function listIssues(): Issue[] {
   return db.prepare("SELECT * FROM issues ORDER BY number DESC").all() as Issue[];
 }
 
-const COVER_EXTS = ["png", "jpg", "svg"] as const;
-
 /**
  * 本期封面檔案：優先 issue-N.(png|jpg|svg) → 最近一期的封面（點陣圖優先）
  * → 隨庫附帶的預設封面（assets/cover-default.jpg，即創刊號封面）。
  * 全新 clone 尚未跑過 cover、或某週渲染失敗時，都能有一張完整封面，不擋出刊。
+ * rasterOnly：email 的 CID 內嵌只吃點陣圖（png/jpg），svg 僅網頁版可用。
  */
-export function findCover(n: number): string | null {
+export function findCover(n: number, opts: { rasterOnly?: boolean } = {}): string | null {
+  const exts = opts.rasterOnly ? (["png", "jpg"] as const) : (["png", "jpg", "svg"] as const);
   const assetsRoot = path.join(CONFIG.dataDir, "..", "assets");
   const dir = path.join(assetsRoot, "covers");
   const defaultCover =
-    COVER_EXTS.map((e) => path.join(assetsRoot, `cover-default.${e}`)).find((p) => fs.existsSync(p)) ?? null;
+    exts.map((e) => path.join(assetsRoot, `cover-default.${e}`)).find((p) => fs.existsSync(p)) ?? null;
   const orDefault = (p: string | null) => p ?? defaultCover;
 
-  for (const ext of COVER_EXTS) {
+  for (const ext of exts) {
     const exact = path.join(dir, `issue-${n}.${ext}`);
     if (fs.existsSync(exact)) return exact;
   }
   if (!fs.existsSync(dir)) return orDefault(null);
+  const pattern = opts.rasterOnly ? /^issue-\d+\.(png|jpg)$/ : /^issue-\d+\.(png|jpg|svg)$/;
   const num = (f: string) => Number(f.match(/^issue-(\d+)\./)?.[1] ?? -1);
   const isRaster = (f: string) => f.endsWith(".png") || f.endsWith(".jpg");
   const candidates = fs
     .readdirSync(dir)
-    .filter((f) => /^issue-\d+\.(png|jpg|svg)$/.test(f))
+    .filter((f) => pattern.test(f))
     .sort((a, b) => num(b) - num(a) || (isRaster(a) ? -1 : 1));
   const raster = candidates.find(isRaster);
   const pick = raster ?? candidates[0];

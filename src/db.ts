@@ -69,6 +69,13 @@ export function getDb(): Database.Database {
       sent_at INTEGER
     );
 
+    -- 本期選用了哪些頁面（email 渲染時寫入；封刊時據此標記 published_in）
+    CREATE TABLE IF NOT EXISTS issue_items (
+      issue_number INTEGER NOT NULL,
+      page_id INTEGER NOT NULL REFERENCES pages(id),
+      PRIMARY KEY (issue_number, page_id)
+    );
+
     CREATE TABLE IF NOT EXISTS captures (
       id INTEGER PRIMARY KEY,
       capture_id TEXT UNIQUE NOT NULL,
@@ -98,6 +105,9 @@ function migrate(db: Database.Database): void {
   // 知識型內容判定（NULL=未分類）：非知識型內容無論停留多久都不入刊
   addColumn("is_knowledge", "is_knowledge INTEGER");
   addColumn("topic", "topic TEXT");
+  // 已刊登於第 N 期（封刊時標記）：刊登過的內容永不再入選，
+  // 避免「讀了自己的週刊 → 內容下週又被推薦」的自我迴圈
+  addColumn("published_in", "published_in INTEGER");
 }
 
 export function getMeta(key: string): string | null {

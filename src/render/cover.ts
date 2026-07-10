@@ -3,6 +3,7 @@ import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
 import { getCurrentIssue } from "../issue.js";
+import { ClaudeCliProvider } from "../llm/claudeCli.js";
 import { getImageProvider } from "../llm/image.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
 
@@ -38,7 +39,7 @@ const weekAgo = Math.floor(Date.now() / 1000) - DAYS * 86400;
 const items = db
   .prepare(
     `SELECT topic, SUBSTR(title, 1, 80) AS title FROM pages
-      WHERE is_knowledge = 1 AND last_seen > ? AND topic IS NOT NULL
+      WHERE is_knowledge = 1 AND published_in IS NULL AND last_seen > ? AND topic IS NOT NULL
       ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 12`,
   )
   .all(weekAgo) as Array<{ topic: string; title: string }>;
@@ -72,6 +73,7 @@ fs.writeFileSync(
 console.log(`\n本期封面概念：${concept.concept_zh}\n`);
 
 try {
+  if (process.env.BROWSTACK_DISABLE_IMAGE) throw new Error("圖像引擎已由 BROWSTACK_DISABLE_IMAGE 停用");
   const image = getImageProvider();
   console.log(`交由 ${image.name} 渲染…`);
   const png = await image.generate(concept.image_prompt_en);
@@ -79,6 +81,57 @@ try {
   fs.writeFileSync(outPath, png);
   console.log(`封面完成：${outPath}`);
 } catch (e) {
-  console.log(`圖像渲染未執行：${String(e)}`);
-  console.log("概念與 prompt 已存檔（assets/covers/），設定 OPENAI_API_KEY 後重跑 npm run cover 即可渲染。");
+  // 沒有圖像引擎金鑰時的後備：用訂閱制 AI（最強模型＋高思考等級）直接畫 SVG 插畫
+  console.log(`圖像引擎未執行（${String(e).slice(0, 120)}），改用訂閱 AI 繪製 SVG 封面…`);
+  try {
+    const svg = await generateSvgCover(concept);
+    const outPath = path.join(coversDir, `issue-${issueNo}.svg`);
+    fs.writeFileSync(outPath, svg);
+    console.log(`SVG 封面完成：${outPath}`);
+    console.log("（提示：設定 OPENAI_API_KEY 可獲得更精緻的圖像引擎封面，見 README）");
+  } catch (e2) {
+    console.log(`SVG 後備也未完成：${String(e2).slice(0, 160)}`);
+    console.log("本期將沿用最近一期／預設封面，不影響出刊。");
+  }
+}
+
+async function generateSvgCover(c: { concept_zh: string; image_prompt_en: string }): Promise<string> {
+  // 偏好最強訂閱模型＋高思考；不可用時退回預設模型。畫圖較慢，給 10 分鐘。
+  const artists =
+    CONFIG.llm.provider === "claude-cli"
+      ? [
+          new ClaudeCliProvider({ model: "opus", highEffort: true, timeoutMs: 600_000 }),
+          new ClaudeCliProvider({ timeoutMs: 600_000 }),
+        ]
+      : [getProvider()];
+  let lastErr: unknown = null;
+  for (const artist of artists) {
+    try {
+      const reply = await artist.complete({
+        system:
+          "你是頂尖的向量插畫家，以 The New Yorker 封面傳統作畫。你將直接用 SVG 作為畫布完成一幅完整、精緻、有構圖層次的插畫。",
+        prompt:
+          `依下列概念完成封面插畫：\n${c.concept_zh}\n\n場景參考（供理解，不必逐字照做）：${c.image_prompt_en.slice(0, 800)}\n\n` +
+          `硬性規格：\n` +
+          `- 只輸出一個完整的 <svg>…</svg>，不要任何其他文字或圍欄\n` +
+          `- viewBox="0 0 1000 1500" 直式構圖；畫面上緣 18% 保持簡潔供刊頭壓字\n` +
+          `- 只用這些顏色：#1f4e5f #16394a #b5361c #e8a13d #f2e8d5 #211c15 #6b8f71 #d9cfb4\n` +
+          `- 扁平色塊、無漸層、無濾鏡；構圖要有前中後景與大量負空間\n` +
+          `- 禁止：任何文字/字母/數字、<script>、<image>、<foreignObject>、外部連結、事件屬性\n` +
+          `- 以約 40–90 個幾何元素構成完整場景（人物、家具、光影色塊都用幾何形狀組成），元素夠用就好、不追求繁複`,
+        maxTokens: 16384,
+      });
+      const start = reply.indexOf("<svg");
+      const end = reply.lastIndexOf("</svg>");
+      if (start === -1 || end === -1) throw new Error("回覆中沒有完整的 SVG");
+      const svg = reply.slice(start, end + 6);
+      if (/<script|<image|<foreignObject|xlink:href|\shref=|on[a-z]+=/i.test(svg)) {
+        throw new Error("SVG 含不允許的元素或屬性");
+      }
+      return svg;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }

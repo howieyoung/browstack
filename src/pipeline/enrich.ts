@@ -32,7 +32,7 @@ export function getCandidates(): Candidate[] {
               ROUND(active_seconds_total / 60.0, 1) AS active_min,
               ROUND(total_duration_sec / 60.0, 1) AS minutes
          FROM pages
-        WHERE last_seen > ? AND is_knowledge IS NULL
+        WHERE last_seen > ? AND is_knowledge IS NULL AND published_in IS NULL
           AND title IS NOT NULL AND LENGTH(title) > 8`;
 
   // 文章與社群優先入池，不讓高停留的 unknown 雜訊把它們擠掉
@@ -126,7 +126,8 @@ export async function summarizeKnowledgePages(): Promise<number> {
   const articles = db
     .prepare(
       `SELECT id, title, content_text FROM pages
-        WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NULL AND last_seen > ?
+        WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NULL
+          AND published_in IS NULL AND last_seen > ?
         ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 10`,
     )
     .all(weekAgo) as Array<{ id: number; title: string; content_text: string | null }>;
@@ -165,7 +166,8 @@ export async function summarizeKnowledgePages(): Promise<number> {
     db
       .prepare(
         `SELECT id, title FROM pages
-        WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NULL AND last_seen > ? AND LENGTH(title) >= 40
+        WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NULL
+          AND published_in IS NULL AND last_seen > ? AND LENGTH(title) >= 40
         LIMIT 8`,
       )
       .all(weekAgo) as Array<{ id: number; title: string }>

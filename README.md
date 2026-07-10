@@ -1,10 +1,8 @@
 # Browstack
 
-**English** · [**繁體中文說明（完整）→ README.zh-TW.md**](README.zh-TW.md)
+**English** · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 **Browser + Substack** — turn your own browsing history into a beautifully designed, privacy-first personal weekly digest, delivered to your inbox like a real newsletter.
-
-> 🇹🇼 中文使用者：完整的繁體中文說明在 **[README.zh-TW.md](README.zh-TW.md)**，包含逐步設定與「最短路徑跑出第 0 期」。
 
 <p align="center">
   <img src="docs/images/sample-cover.jpg" width="420" alt="Sample engine-generated cover in The New Yorker illustration tradition" />
@@ -30,6 +28,14 @@ You tap articles from social feeds all day, never finish them, and they pile up 
 >
 > These five steps need **no paid API key**: your existing Chrome history, the Claude Code CLI (no extra key), and a bundled default cover. Add an AI-generated cover (OpenAI) and email delivery (Gmail) later via the one-time setup guides below.
 
+### 🤖 Or just let your AI agent set everything up
+
+After cloning, open **Claude Code** (or Codex, or any coding agent) inside this folder and say:
+
+> **"Scan this project and walk me through setting it up."**
+
+The repo ships with [AGENTS.md](AGENTS.md) — a step-by-step playbook your agent follows to configure everything *with* you: personal config, LLM login, your first issue, cover-art keys, Gmail delivery, the Chrome extension, and the weekly schedule. It also enforces the privacy rules (your keys go into the macOS Keychain, never into the chat).
+
 ## How it works
 
 ```
@@ -46,7 +52,8 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 - **Classify** — hard rule: non-knowledge content (gossip, lotteries, promos, quick lookups) never makes the issue, no matter how long you lingered. Sensitive pages (banking, mail, auth, government services) are never even stored.
 - **Enrich** — an LLM writes three bullets + one takeaway per article, and a one-line editorial context per social post.
 - **Cover** — an LLM art director distills the week into a single visual metaphor, then an image engine renders it under a fixed art direction (flat gouache, limited palette, generous negative space — no text in the art).
-- **Render & send** — magazine nameplate (issue №, date range, wordmark, tagline), topic-grouped summaries, weekly stats. Sent via your own Gmail SMTP with the cover inlined as a CID attachment.
+- **Render & send** — magazine nameplate (issue №, date range, wordmark, tagline), topic-grouped summaries, weekly stats. Every item shows **how long you read it that week** — the reason it was picked. Sent via your own Gmail SMTP with the cover inlined as a CID attachment.
+- **No self-feeding loop** — once an issue is sent, its items are sealed (`published_in`) and can never reappear, even if you revisit them from the digest itself.
 
 ## Privacy principles
 
@@ -107,7 +114,7 @@ claude /login    # once, in a terminal
 - **An LLM** (the *art director*) — the Claude Code CLI or Anthropic API you already set up in step 1. It reads the week's topics and designs one visual metaphor + an image prompt.
 - **An OpenAI key** (the *renderer*) — turns that prompt into the finished illustration via `gpt-image-1`.
 
-Without the OpenAI key you still get the concept text, but no new image — so the default cover is reused. **Set the OpenAI key so each week gets its own cover.**
+Without the OpenAI key, Browstack falls back to having your **subscription LLM draw the cover itself as an SVG illustration** (strongest model, high reasoning effort) — every issue still gets a unique cover. The OpenAI renderer simply produces richer raster art. The bundled default cover is only the last resort.
 
 At [platform.openai.com](https://platform.openai.com) create a **dedicated project + key with a monthly spending cap** (one image per week costs very little — a $10 cap is generous). Then store it in the Keychain — note the **leading space** which keeps the command out of your shell history:
 
@@ -148,7 +155,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Issues & archive
 
-Every issue is numbered and kept: №0 is the preview issue, №1 the inaugural issue, then 第 N 期. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
+Every issue is numbered and kept: №0 is the preview issue, №1 the inaugural issue, and so on. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
 
 ## Editorial principles
 

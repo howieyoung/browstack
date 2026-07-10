@@ -37,7 +37,7 @@ if (!fs.existsSync(emailPath)) {
 let html = fs.readFileSync(emailPath, "utf8");
 
 // 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）；svg 無法內嵌，接受 png/jpg
-const coverPath = findCover(issue.number);
+const coverPath = findCover(issue.number, { rasterOnly: true });
 const attachments: Array<{ filename: string; path: string; cid: string }> = [];
 if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
   const filename = coverPath.endsWith(".jpg") ? "cover.jpg" : "cover.png";

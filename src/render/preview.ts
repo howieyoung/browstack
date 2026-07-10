@@ -33,7 +33,8 @@ const articles = db
             ROUND(total_duration_sec / 60.0, 1) AS minutes,
             ROUND(active_seconds_total / 60.0, 1) AS active_min, devices
        FROM pages
-      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL AND last_seen > ?
+      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL
+        AND published_in IS NULL AND last_seen > ?
       ORDER BY active_seconds_total DESC, total_duration_sec DESC
       LIMIT 10`,
   )
@@ -45,7 +46,8 @@ const socialPosts = db
             ROUND(total_duration_sec / 60.0, 1) AS minutes,
             ROUND(active_seconds_total / 60.0, 1) AS active_min, devices
        FROM pages
-      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL AND last_seen > ?
+      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL
+        AND published_in IS NULL AND last_seen > ?
       ORDER BY total_duration_sec DESC
       LIMIT 6`,
   )
@@ -70,8 +72,9 @@ const esc = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const cleanTitle = (s: string) => esc(s.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim());
 const deviceLabel = (d: string) => (d === "both" ? "桌機＋手機" : d === "mobile" ? "手機" : "桌機");
+// 你當時讀了多久——這就是它被選進本期的原因
 const signalLabel = (i: PageItem) =>
-  i.active_min > 0 ? `⚡ ${i.active_min} 分實讀` : `${i.minutes} 分停留`;
+  i.active_min > 0 ? `⚡ 本週你實讀了 ${i.active_min} 分鐘` : `本週你停留了 ${i.minutes} 分鐘`;
 const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;

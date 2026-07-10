@@ -17,26 +17,44 @@ const weekAgo = now - DAYS * 86400;
 const issue = getCurrentIssue();
 
 interface PageItem {
+  id: number;
   title: string;
   url: string;
   topic: string | null;
   summary: string | null;
+  minutes: number;
+  active_min: number;
 }
 
 const articles = db
   .prepare(
-    `SELECT title, url, topic, summary FROM pages
-      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL AND last_seen > ?
+    `SELECT id, title, url, topic, summary,
+            ROUND(total_duration_sec / 60.0, 1) AS minutes,
+            ROUND(active_seconds_total / 60.0, 1) AS active_min
+       FROM pages
+      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL
+        AND published_in IS NULL AND last_seen > ?
       ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 10`,
   )
   .all(weekAgo) as PageItem[];
 const socialPosts = db
   .prepare(
-    `SELECT title, url, topic, summary FROM pages
-      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL AND last_seen > ?
+    `SELECT id, title, url, topic, summary,
+            ROUND(total_duration_sec / 60.0, 1) AS minutes,
+            ROUND(active_seconds_total / 60.0, 1) AS active_min
+       FROM pages
+      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL
+        AND published_in IS NULL AND last_seen > ?
       ORDER BY total_duration_sec DESC LIMIT 6`,
   )
   .all(weekAgo) as PageItem[];
+
+// 記錄本期選材：封刊（send 成功）時據此把這些頁面標記為已刊登，永不重複入選
+db.transaction(() => {
+  db.prepare("DELETE FROM issue_items WHERE issue_number = ?").run(issue.number);
+  const ins = db.prepare("INSERT OR IGNORE INTO issue_items (issue_number, page_id) VALUES (?, ?)");
+  for (const item of [...articles, ...socialPosts]) ins.run(issue.number, item.id);
+})();
 
 const esc = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -45,6 +63,10 @@ const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 };
+// 你當時讀了多久——這就是它被選進本期的原因
+const signalLabel = (i: PageItem) =>
+  i.active_min > 0 ? `本週你實讀了 ${i.active_min} 分鐘` : `本週你停留了 ${i.minutes} 分鐘`;
+const hostOf = (u: string) => new URL(u).hostname.replace(/^www\./, "");
 
 const ink = "#211c15";
 const muted = "#8d8474";
@@ -79,6 +101,7 @@ const articleHtml = [...groups.entries()]
       <a href="${esc(a.url)}" style="font-family:${serif};font-size:19px;font-weight:700;color:${ink};text-decoration:none;line-height:1.55;display:block;margin-top:2px">${cleanTitle(a.title)}</a>
       <ul style="margin:10px 0 0;padding-left:18px">${bullets}</ul>
       ${s.takeaway ? `<div style="margin-top:8px;font-family:${serif};font-size:14px;color:${accent};line-height:1.7">◈ ${esc(s.takeaway)}</div>` : ""}
+      <div style="margin-top:8px;font-size:12px;color:${muted}">${hostOf(a.url)} · ${signalLabel(a)}</div>
     </div>`;
       })
       .join("\n");
@@ -93,7 +116,7 @@ const socialHtml = socialPosts
     <div style="background:#f1ebdd;border-left:3px solid ${accent};padding:16px 20px;margin:0 0 16px">
       ${s.context ? `<div style="font-size:13px;font-weight:600;color:${accent};line-height:1.7;margin-bottom:8px">${esc(s.context)}</div>` : ""}
       <div style="font-family:${serif};font-size:14px;line-height:1.9;color:${ink}">${esc(p.title.replace(/^\(\d+\)\s*/, "").trim().slice(0, 220))}${p.title.length > 220 ? "…" : ""}</div>
-      <div style="margin-top:10px;font-size:12px"><a href="${esc(p.url)}" style="color:${accent}">查看原文 →</a></div>
+      <div style="margin-top:10px;font-size:12px;color:${muted}">${signalLabel(p)} · <a href="${esc(p.url)}" style="color:${accent}">查看原文 →</a></div>
     </div>`;
   })
   .join("\n");

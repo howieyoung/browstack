@@ -4,9 +4,14 @@ import type { LLMProvider } from "./provider.js";
 /**
  * 用本機 Claude Code CLI（claude -p）當 LLM——走用戶既有訂閱，不需另管 API key。
  * 需要先在終端機執行過 claude /login。
+ * 可選指定 model（如 "opus"）與高思考等級——封面 SVG 後備等重活會用最強配置。
  */
 export class ClaudeCliProvider implements LLMProvider {
   readonly name = "claude-cli";
+
+  constructor(
+    private readonly cliOpts: { model?: string; highEffort?: boolean; timeoutMs?: number } = {},
+  ) {}
 
   complete(opts: { system?: string; prompt: string; maxTokens?: number }): Promise<string> {
     const full = opts.system ? `${opts.system}\n\n${opts.prompt}` : opts.prompt;
@@ -24,13 +29,16 @@ export class ClaudeCliProvider implements LLMProvider {
           delete env[key];
         }
       }
-      const child = spawn("claude", ["-p"], { env, stdio: ["pipe", "pipe", "pipe"] });
+      if (this.cliOpts.highEffort) env.CLAUDE_EFFORT = "high";
+      const args = ["-p", ...(this.cliOpts.model ? ["--model", this.cliOpts.model] : [])];
+      const child = spawn("claude", args, { env, stdio: ["pipe", "pipe", "pipe"] });
       let out = "";
       let err = "";
+      const timeoutMs = this.cliOpts.timeoutMs ?? 180_000;
       const timer = setTimeout(() => {
         child.kill();
-        reject(new Error("claude-cli 逾時（180 秒）"));
-      }, 180_000);
+        reject(new Error(`claude-cli 逾時（${Math.round(timeoutMs / 1000)} 秒）`));
+      }, timeoutMs);
       child.stdout.on("data", (d: Buffer) => (out += d.toString()));
       child.stderr.on("data", (d: Buffer) => (err += d.toString()));
       child.on("error", (e) => {
