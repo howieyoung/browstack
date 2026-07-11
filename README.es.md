@@ -149,6 +149,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Se ejecuta en tu sesión de usuario, así que el Keychain (secretos de LLM/OpenAI/SMTP) está disponible.
 - Si tu Mac está dormido a la hora programada, launchd ejecuta el trabajo al despertar.
 - Un fallo al renderizar la portada (p. ej. sin clave de OpenAI) no bloquea el número — se reutiliza la portada anterior.
+- Un fallo transitorio del LLM tampoco mata la ejecución: la clasificación se reintenta una vez y el número sale con lo ya enriquecido. Nunca se envía un número vacío.
 - Guardas de calidad integradas: los fragmentos de extracción (< 300 caracteres) y las publicaciones sociales duplicadas se degradan automáticamente; las búsquedas de enciclopedia/diccionario nunca califican.
 - Logs: `data/logs/weekly.log`. Ejecución manual en cualquier momento: `npm run weekly`.
 - Desinstalar: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`

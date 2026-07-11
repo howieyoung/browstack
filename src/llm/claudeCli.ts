@@ -34,7 +34,8 @@ export class ClaudeCliProvider implements LLMProvider {
       const child = spawn("claude", args, { env, stdio: ["pipe", "pipe", "pipe"] });
       let out = "";
       let err = "";
-      const timeoutMs = this.cliOpts.timeoutMs ?? 180_000;
+      // 批次工作（分類/摘要/繪圖）都是離線執行，冷啟動＋token 刷新下 3 分鐘不夠——預設給 10 分鐘
+      const timeoutMs = this.cliOpts.timeoutMs ?? 600_000;
       const timer = setTimeout(() => {
         child.kill();
         reject(new Error(`claude-cli 逾時（${Math.round(timeoutMs / 1000)} 秒）`));

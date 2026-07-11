@@ -149,6 +149,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - S'exécute dans votre session utilisateur, le Trousseau (secrets LLM/OpenAI/SMTP) est donc disponible.
 - Si votre Mac dort à l'heure prévue, launchd exécute la tâche au réveil suivant.
 - Un échec du rendu de couverture (p. ex. clé OpenAI manquante) ne bloque pas le numéro — la couverture précédente est réutilisée.
+- Une défaillance passagère du LLM ne tue pas non plus l'exécution : la classification est retentée une fois et le numéro part avec ce qui est déjà enrichi. Un numéro vide n'est jamais envoyé.
 - Garde-fous qualité intégrés : les fragments d'extraction (< 300 caractères) et les publications sociales dupliquées sont automatiquement rétrogradés ; les recherches encyclopédie/dictionnaire ne se qualifient jamais.
 - Logs : `data/logs/weekly.log`. Exécution manuelle à tout moment : `npm run weekly`.
 - Désinstallation : `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`

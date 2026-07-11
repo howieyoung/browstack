@@ -202,7 +202,13 @@ export async function enrich(): Promise<void> {
   const candidates = getCandidates();
   console.log(`候選 ${candidates.length} 項，交由 ${getProvider().name} 分類…`);
   if (candidates.length > 0) {
-    const records = await classifyCandidates(candidates);
+    let records: EnrichmentRecord[];
+    try {
+      records = await classifyCandidates(candidates);
+    } catch (e) {
+      console.log(`分類失敗（${String(e).slice(0, 120)}），重試一次…`);
+      records = await classifyCandidates(candidates);
+    }
     const { updated, upgraded } = applyEnrichment(records);
     console.log(`已分類 ${updated} 項（unknown 升級為文章 ${upgraded} 項）`);
   }

@@ -17,7 +17,9 @@ function run(script, { tolerate = false } = {}) {
 
 console.log(`[weekly] Browstack 出刊開始 / issue run started — ${new Date().toString()}`);
 run("ingest");
-run("enrich");
+// enrich 偶發失敗（LLM 逾時等）不殺整期：本週稍早已增潤的內容仍可出刊；
+// 若最終完全沒有內容，email/send 會拒絕寄出空刊物（見 email.ts 保險）
+run("enrich", { tolerate: true });
 // 封面渲染失敗（如金鑰未設）不擋出刊，沿用上一張封面
 run("cover", { tolerate: true });
 run("send");

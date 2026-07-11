@@ -149,6 +149,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0â
 - Runs in your logged-in user session, so the Keychain (LLM/OpenAI/SMTP secrets) is available.
 - If your Mac is asleep at the scheduled time, launchd runs the job on next wake.
 - A failed cover render (e.g. missing OpenAI key) doesn't block the issue â€” the previous cover is reused.
+- A transient LLM failure doesn't kill the run either: classification retries once, and the issue ships with whatever was already enriched. An empty issue is never sent.
 - Built-in quality guards: extraction stubs (< 300 chars) and duplicate social posts are auto-demoted; encyclopedia/dictionary lookups never qualify.
 - Logs: `data/logs/weekly.log`. Manual run anytime: `npm run weekly`.
 - Uninstall: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`

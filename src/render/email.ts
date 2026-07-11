@@ -49,6 +49,12 @@ const socialPosts = db
   )
   .all(weekAgo) as PageItem[];
 
+// 保險：空刊物絕不寄出（enrich 全掛時寧可這週停刊，也不寄一封空信）
+if (articles.length + socialPosts.length === 0) {
+  console.error("本期沒有任何已增潤的內容，拒絕產出空刊物。請先跑 npm run enrich。");
+  process.exit(2);
+}
+
 // 記錄本期選材：封刊（send 成功）時據此把這些頁面標記為已刊登，永不重複入選
 db.transaction(() => {
   db.prepare("DELETE FROM issue_items WHERE issue_number = ?").run(issue.number);
