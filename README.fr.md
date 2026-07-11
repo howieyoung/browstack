@@ -156,7 +156,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Numéros et archives
 
-Chaque numéro est numéroté et conservé : №0 est le numéro d'aperçu, №1 le numéro inaugural, et ainsi de suite. Un `send` réussi scelle le numéro courant ; l'exécution suivante en ouvre automatiquement un nouveau avec une couverture neuve. Les artefacts s'accumulent dans `out/` (versions web + e-mail par numéro) et `assets/covers/` (une couverture par numéro), avec des archives consultables dans `out/index.html`. Si la couverture d'une semaine échoue au rendu, celle du numéro précédent est réutilisée.
+Chaque numéro est numéroté et conservé : №0 est le numéro d'aperçu ; ensuite, chaque numéro est simplement №N — la progression est portée par le numéro lui-même. Un `send` réussi scelle le numéro courant ; l'exécution suivante en ouvre automatiquement un nouveau avec une couverture neuve. Les artefacts s'accumulent dans `out/` (versions web + e-mail par numéro) et `assets/covers/` (une couverture par numéro), avec des archives consultables dans `out/index.html`. Si la couverture d'une semaine échoue au rendu, celle du numéro précédent est réutilisée.
 
 ## Principes éditoriaux
 

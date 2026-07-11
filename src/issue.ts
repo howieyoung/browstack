@@ -18,10 +18,10 @@ export interface Issue {
   sent_at: number | null;
 }
 
+// 特殊刊名只保留給 №0（創刊預覽號）；正式期數以編號 №N 呈現——
+// 進展由期數本身傳達，「創刊」字樣不跟著每期跑，也避免「№2 — 第 2 期」的同義重複
 export function issueTitle(n: number): string {
-  if (n === 0) return "創刊預覽號";
-  if (n === 1) return "創刊號";
-  return `第 ${n} 期`;
+  return n === 0 ? "創刊預覽號" : "";
 }
 
 // 目前這一期：沿用尚未寄出的最新一期；上一期已寄出則開新的一期

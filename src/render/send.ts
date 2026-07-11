@@ -58,7 +58,7 @@ const transporter = nodemailer.createTransport({
 const info = await transporter.sendMail({
   from: `Browstack <${CONFIG.email.from}>`,
   to: CONFIG.email.to,
-  subject: `Browstack №${issue.number} — ${issue.title}｜你的一週閱讀，成刊了`,
+  subject: `Browstack №${issue.number}${issue.title ? " — " + issue.title : ""}｜你的一週閱讀，成刊了`,
   html,
   attachments,
 });

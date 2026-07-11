@@ -97,7 +97,7 @@ const socialHtml = socialPosts
   .join("\n");
 
 const issue = getCurrentIssue();
-const issueLabel = `№${issue.number} · ${issue.title}`;
+const issueLabel = issue.title ? `№${issue.number} · ${issue.title}` : `№${issue.number}`;
 
 // 封面：本期 png/jpg/svg → 最近一期封面 → 隨庫預設封面（渲染失敗不擋出刊）
 const coverPath = findCover(issue.number);
@@ -236,7 +236,7 @@ const archiveRows = listIssues()
     const emailFile = `browstack-issue-${i.number}.email.html`;
     const emailLink = fs.existsSync(path.join(outDir, emailFile)) ? ` · <a href="${emailFile}">email 版</a>` : "";
     const status = i.sent_at ? `已寄出 ${new Date(i.sent_at * 1000).toLocaleDateString("zh-TW")}` : "編輯中";
-    return `<li><a href="browstack-issue-${i.number}.html"><b>№${i.number} · ${i.title}</b></a>
+    return `<li><a href="browstack-issue-${i.number}.html"><b>№${i.number}${i.title ? " · " + i.title : ""}</b></a>
       <span>${fmtDate(i.week_start)} — ${fmtDate(i.week_end)} · ${status}${coverLink}${emailLink}</span></li>`;
   })
   .join("\n");

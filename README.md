@@ -156,7 +156,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Issues & archive
 
-Every issue is numbered and kept: №0 is the preview issue, №1 the inaugural issue, and so on. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
+Every issue is numbered and kept: №0 is the preview issue; every issue after it is simply №N — progression is carried by the number itself. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
 
 ## Editorial principles
 

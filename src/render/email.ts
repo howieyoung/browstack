@@ -104,7 +104,7 @@ const html = `<!doctype html>
 <body style="margin:0;padding:0;background:#e6e1d5">
   <div style="max-width:600px;margin:0 auto;background:#faf6ee;font-family:${sans};color:${ink}">
     <div style="padding:32px 40px 20px;text-align:center">
-      <div style="font-family:${serif};font-size:13px;font-weight:700;color:${accent};letter-spacing:.12em">№${issue.number} · ${issue.title} · ${fmtDate(weekAgo)} — ${fmtDate(now)}</div>
+      <div style="font-family:${serif};font-size:13px;font-weight:700;color:${accent};letter-spacing:.12em">№${issue.number}${issue.title ? " · " + issue.title : ""} · ${fmtDate(weekAgo)} — ${fmtDate(now)}</div>
       <div style="font-family:${serif};font-style:italic;font-weight:900;font-size:46px;line-height:1.1;margin-top:4px">Browstack</div>
       <div style="margin-top:8px;font-size:10px;letter-spacing:.45em;color:${muted};text-transform:uppercase">Your Personal Weekly Digest</div>
     </div>

@@ -156,7 +156,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Números y archivo
 
-Cada número está numerado y se conserva: №0 es el número de vista previa, №1 el inaugural, y así sucesivamente. Un `send` exitoso sella el número actual; la siguiente ejecución abre automáticamente uno nuevo con portada nueva. Los artefactos se acumulan en `out/` (versiones web + email por número) y `assets/covers/` (una portada por número), con un archivo navegable en `out/index.html`. Si la portada de una semana falla al renderizarse, se reutiliza la del número anterior.
+Cada número está numerado y se conserva: №0 es el número de vista previa; a partir de ahí, cada número es simplemente №N — la progresión la lleva el propio número. Un `send` exitoso sella el número actual; la siguiente ejecución abre automáticamente uno nuevo con portada nueva. Los artefactos se acumulan en `out/` (versiones web + email por número) y `assets/covers/` (una portada por número), con un archivo navegable en `out/index.html`. Si la portada de una semana falla al renderizarse, se reutiliza la del número anterior.
 
 ## Principios editoriales
 
