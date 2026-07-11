@@ -3,6 +3,7 @@ import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
 import { findCover, getCurrentIssue, listIssues } from "../issue.js";
+import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
  * 週刊渲染器 v2：知識型內容 ＋ 編輯摘要 ＋ 主題分組 ＋ 封面插畫。
@@ -16,42 +17,7 @@ const db = getDb();
 const now = Math.floor(Date.now() / 1000);
 const weekAgo = now - 7 * 86400;
 
-interface PageItem {
-  title: string;
-  url: string;
-  topic: string | null;
-  summary: string | null;
-  total_visits: number;
-  minutes: number;
-  active_min: number;
-  devices: string;
-}
-
-const articles = db
-  .prepare(
-    `SELECT title, url, topic, summary, total_visits,
-            ROUND(total_duration_sec / 60.0, 1) AS minutes,
-            ROUND(active_seconds_total / 60.0, 1) AS active_min, devices
-       FROM pages
-      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL
-        AND published_in IS NULL AND last_seen > ?
-      ORDER BY active_seconds_total DESC, total_duration_sec DESC
-      LIMIT 10`,
-  )
-  .all(weekAgo) as PageItem[];
-
-const socialPosts = db
-  .prepare(
-    `SELECT title, url, topic, summary, total_visits,
-            ROUND(total_duration_sec / 60.0, 1) AS minutes,
-            ROUND(active_seconds_total / 60.0, 1) AS active_min, devices
-       FROM pages
-      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL
-        AND published_in IS NULL AND last_seen > ?
-      ORDER BY total_duration_sec DESC
-      LIMIT 6`,
-  )
-  .all(weekAgo) as PageItem[];
+const { articles, socialPosts } = selectIssueItems(weekAgo);
 
 const weekChrome = toChromeTime(weekAgo);
 const footprint = db
@@ -73,8 +39,10 @@ const esc = (s: string) =>
 const cleanTitle = (s: string) => esc(s.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim());
 const deviceLabel = (d: string) => (d === "both" ? "桌機＋手機" : d === "mobile" ? "手機" : "桌機");
 // 你當時讀了多久——這就是它被選進本期的原因
-const signalLabel = (i: PageItem) =>
-  i.active_min > 0 ? `⚡ 本週你實讀了 ${i.active_min} 分鐘` : `本週你停留了 ${i.minutes} 分鐘`;
+const signalLabel = (i: IssueItem) =>
+  i.active_min > 0
+    ? `⚡ 本週你實讀了 ${i.active_min} 分鐘`
+    : `本週你停留了 ${i.minutes}${i.capped ? "+" : ""} 分鐘`;
 const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
@@ -84,7 +52,7 @@ const mobileVisits = deviceSplit.find((d) => d.device === "mobile")?.n ?? 0;
 const totalVisits = deviceSplit.reduce((a, d) => a + d.n, 0);
 
 // 主題分組：依組內最強訊號排序
-const topicGroups = new Map<string, PageItem[]>();
+const topicGroups = new Map<string, IssueItem[]>();
 for (const a of articles) {
   const key = a.topic ?? "其他";
   if (!topicGroups.has(key)) topicGroups.set(key, []);

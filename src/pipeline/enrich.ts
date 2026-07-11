@@ -1,6 +1,7 @@
 import { getDb } from "../db.js";
 import { fetchArticle } from "../fetch/extract.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
+import { normalizeTitle } from "../shared/urls.js";
 
 /**
  * M2 enrich 管線：知識分類 → 正文補抓 → 摘要。
@@ -133,6 +134,16 @@ export async function summarizeKnowledgePages(): Promise<number> {
     .all(weekAgo) as Array<{ id: number; title: string; content_text: string | null }>;
   const saveSummary = db.prepare("UPDATE pages SET summary = ? WHERE id = ?");
   const demote = db.prepare("UPDATE pages SET is_knowledge = 0 WHERE id = ?");
+  // 同文分身防浪費：已有摘要的知識文章標題集合，撞鍵者直接降級、不再花 LLM 摘要
+  const knownArticles = new Set(
+    (
+      db
+        .prepare(
+          "SELECT title FROM pages WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL AND title IS NOT NULL",
+        )
+        .all() as Array<{ title: string }>
+    ).map((r) => normalizeTitle(r.title)),
+  );
   let done = 0;
   for (const a of articles) {
     // 品管：正文太短＝擷取失敗的空殼，寧缺勿濫，直接降級
@@ -140,6 +151,12 @@ export async function summarizeKnowledgePages(): Promise<number> {
       demote.run(a.id);
       continue;
     }
+    const titleKey = normalizeTitle(a.title);
+    if (knownArticles.has(titleKey)) {
+      demote.run(a.id); // 追蹤參數分身：同標題已有摘要
+      continue;
+    }
+    knownArticles.add(titleKey);
     const reply = await provider.complete({
       system: "你是週刊編輯，把文章濃縮成足以取代原文閱讀的摘要。",
       prompt:
@@ -152,7 +169,7 @@ export async function summarizeKnowledgePages(): Promise<number> {
   }
 
   // 社群貼文：title 已攜帶全文 → 一句脈絡
-  const normalizePost = (t: string) => t.replace(/^\(\d+\)\s*/, "").slice(0, 60);
+  const normalizePost = normalizeTitle;
   const existingPosts = new Set(
     (
       db

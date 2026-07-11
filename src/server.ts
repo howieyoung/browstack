@@ -2,6 +2,7 @@ import http from "node:http";
 import { classifyUrl } from "./classify/filter.js";
 import { getDb } from "./db.js";
 import { SHARED } from "./shared/settings.js";
+import { normalizeUrl } from "./shared/urls.js";
 
 /**
  * 本機接收服務：extension 唯一的通訊對象。
@@ -66,7 +67,8 @@ function handleBatch(items: CaptureItem[]): { accepted: number; skipped: number 
         skipped++;
         continue;
       }
-      // 伺服器端重新分類：縱深防禦，敏感頁即使被送來也不落地
+      // 正規化 + 伺服器端重新分類：縱深防禦，敏感頁即使被送來也不落地
+      item.url = normalizeUrl(item.url);
       const { kind, sensitive } = classifyUrl(item.url);
       if (sensitive || kind === "noise") {
         skipped++;

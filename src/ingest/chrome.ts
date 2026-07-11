@@ -4,6 +4,7 @@ import path from "node:path";
 import { CONFIG } from "../config.js";
 import { classifyUrl } from "../classify/filter.js";
 import { getDb, getMeta, setMeta, type Device } from "../db.js";
+import { normalizeUrl } from "../shared/urls.js";
 
 // Chrome 時間軸：自 1601-01-01 起算的微秒
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
@@ -86,7 +87,9 @@ export function ingestChromeHistory(): IngestSummary {
 
   db.transaction(() => {
     for (const row of rows) {
-      const { kind, sensitive } = classifyUrl(row.url);
+      // 正規化：剝除 fbclid/utm_* 等追蹤參數，同一篇內容的多次點擊合併為同一頁
+      const url = normalizeUrl(row.url);
+      const { kind, sensitive } = classifyUrl(url);
       if (sensitive) {
         summary.sensitiveSkipped++;
         continue;
@@ -98,14 +101,14 @@ export function ingestChromeHistory(): IngestSummary {
       const durationSec = Math.min(row.visit_duration / 1_000_000, CONFIG.maxVisitDurationSec);
       const title = row.title?.trim() || null;
 
-      const existing = selectPage.get(row.url) as { id: number; devices: Device } | undefined;
+      const existing = selectPage.get(url) as { id: number; devices: Device } | undefined;
       let pageId: number;
       if (existing) {
         updatePage.run(title, kind, row.page_language, unixSec, mergeDevices(existing.devices, device), existing.id);
         pageId = existing.id;
         summary.pagesUpdated++;
       } else {
-        const res = insertPage.run(row.url, title, kind, row.page_language, unixSec, unixSec, device);
+        const res = insertPage.run(url, title, kind, row.page_language, unixSec, unixSec, device);
         pageId = Number(res.lastInsertRowid);
         summary.pagesNew++;
       }

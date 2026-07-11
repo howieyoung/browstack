@@ -3,6 +3,7 @@ import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
 import { getCurrentIssue } from "../issue.js";
+import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
  * Email 版渲染器：讓週刊像一封真正的電子報寄進收件匣。
@@ -16,38 +17,7 @@ const now = Math.floor(Date.now() / 1000);
 const weekAgo = now - DAYS * 86400;
 const issue = getCurrentIssue();
 
-interface PageItem {
-  id: number;
-  title: string;
-  url: string;
-  topic: string | null;
-  summary: string | null;
-  minutes: number;
-  active_min: number;
-}
-
-const articles = db
-  .prepare(
-    `SELECT id, title, url, topic, summary,
-            ROUND(total_duration_sec / 60.0, 1) AS minutes,
-            ROUND(active_seconds_total / 60.0, 1) AS active_min
-       FROM pages
-      WHERE kind = 'article' AND is_knowledge = 1 AND summary IS NOT NULL
-        AND published_in IS NULL AND last_seen > ?
-      ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 10`,
-  )
-  .all(weekAgo) as PageItem[];
-const socialPosts = db
-  .prepare(
-    `SELECT id, title, url, topic, summary,
-            ROUND(total_duration_sec / 60.0, 1) AS minutes,
-            ROUND(active_seconds_total / 60.0, 1) AS active_min
-       FROM pages
-      WHERE kind = 'social' AND is_knowledge = 1 AND summary IS NOT NULL
-        AND published_in IS NULL AND last_seen > ?
-      ORDER BY total_duration_sec DESC LIMIT 6`,
-  )
-  .all(weekAgo) as PageItem[];
+const { articles, socialPosts } = selectIssueItems(weekAgo);
 
 // 保險：空刊物絕不寄出（enrich 全掛時寧可這週停刊，也不寄一封空信）
 if (articles.length + socialPosts.length === 0) {
@@ -69,9 +39,11 @@ const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 };
-// 你當時讀了多久——這就是它被選進本期的原因
-const signalLabel = (i: PageItem) =>
-  i.active_min > 0 ? `本週你實讀了 ${i.active_min} 分鐘` : `本週你停留了 ${i.minutes} 分鐘`;
+// 你當時讀了多久——這就是它被選進本期的原因（capped＝掛置分頁撞到 20 分上限，顯示為 20+）
+const signalLabel = (i: IssueItem) =>
+  i.active_min > 0
+    ? `本週你實讀了 ${i.active_min} 分鐘`
+    : `本週你停留了 ${i.minutes}${i.capped ? "+" : ""} 分鐘`;
 const hostOf = (u: string) => new URL(u).hostname.replace(/^www\./, "");
 
 const ink = "#211c15";
@@ -81,7 +53,7 @@ const rule = "#d9d2c2";
 const serif = `'Noto Serif TC','Songti TC',Georgia,serif`;
 const sans = `'PingFang TC','Noto Sans TC',sans-serif`;
 
-const groups = new Map<string, PageItem[]>();
+const groups = new Map<string, IssueItem[]>();
 for (const a of articles) {
   const key = a.topic ?? "其他";
   if (!groups.has(key)) groups.set(key, []);
