@@ -150,6 +150,8 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0â
 - If your Mac is asleep at the scheduled time, launchd runs the job on next wake.
 - A failed cover render (e.g. missing OpenAI key) doesn't block the issue â€” the previous cover is reused.
 - A transient LLM failure doesn't kill the run either: classification retries once, and the issue ships with whatever was already enriched. An empty issue is never sent.
+- The schedule fires twice each Saturday (08:17 primary, 20:17 retry); once an issue has shipped, the retry is an automatic no-op. A fatal failure raises a macOS notification instead of failing silently.
+- A daily credential heartbeat (09:37) keeps the Claude CLI session fresh and notifies you days ahead if `claude /login` is needed again.
 - Built-in quality guards: extraction stubs (< 300 chars) and duplicate social posts are auto-demoted; encyclopedia/dictionary lookups never qualify.
 - Logs: `data/logs/weekly.log`. Manual run anytime: `npm run weekly`.
 - Uninstall: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`

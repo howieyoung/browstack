@@ -97,6 +97,11 @@ Logs at `data/logs/weekly.log`. Uninstall:
 ## Troubleshooting quick answers
 
 - `claude -p` says "Not logged in" → run `claude /login` in a normal Terminal.
+- macOS notification "Browstack 出刊失敗" / heartbeat credential warning, or logs show
+  "OAuth session expired and could not be refreshed" → the standalone Claude CLI token expired
+  (it decays when unused). Have the user run `claude /login` in Terminal, then run
+  `npm run weekly` to ship this week's issue immediately. The daily 09:37 heartbeat exists
+  precisely to keep this token fresh and warn before Saturday.
 - Cover didn't change → is the OpenAI key in Keychain? (`security find-generic-password -s browstack-openai` exits 0). Otherwise SVG fallback / default cover is used.
 - Email didn't arrive → check `security find-generic-password -s browstack-smtp` exists; app
   passwords require 2-Step Verification enabled.

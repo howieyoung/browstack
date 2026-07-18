@@ -149,6 +149,8 @@ npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0
 - 排程時間 Mac 在睡眠？launchd 會在下次喚醒時補跑。
 - 封面渲染失敗（例如未設 OpenAI 金鑰）不會擋出刊——沿用上一張封面。
 - LLM 偶發失敗也不會殺掉整期：分類會自動重試一次，刊物以已增潤的內容照常出刊；空刊物絕不寄出。
+- 每週六有兩個時段（08:17 主跑、20:17 當日重試）；已成功出刊則重試自動跳過。致命失敗會發 macOS 通知，絕不無聲。
+- 每天 09:37 的憑證心跳保鮮 Claude CLI session，若需重新 `claude /login` 會提前好幾天通知你。
 - 內建品管：擷取空殼（正文 < 300 字）與重複社群貼文自動降級；百科／字典快查一律不入選。
 - 日誌在 `data/logs/weekly.log`；隨時可手動出刊：`npm run weekly`。
 - 解除排程：`launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
