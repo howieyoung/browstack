@@ -95,6 +95,8 @@ npm run serve               # local receiver on 127.0.0.1:8787 — keep it runni
 
 Luego abre `chrome://extensions` → activa el **Modo de desarrollador** → **Cargar descomprimida** → selecciona la carpeta `extension/`. Las páginas que lees activamente durante 30+ segundos se capturan (texto + profundidad de scroll + segundos activos) y aterrizan en la base de datos local. El popup muestra el estado del receptor y la longitud de la cola.
 
+`npm run schedule:weekly` también instala el receptor como LaunchAgent permanente (arranca al iniciar sesión y se reinicia solo si muere), así que no necesitas mantener una terminal con `npm run serve`.
+
 ## Guías de configuración (una sola vez)
 
 ### 1 · Proveedor LLM
@@ -154,7 +156,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Un latido diario de credenciales (09:37) mantiene fresca la sesión del CLI de Claude y te avisa con días de antelación si vuelve a hacer falta `claude /login`.
 - Guardas de calidad integradas: los fragmentos de extracción (< 300 caracteres) y las publicaciones sociales duplicadas se degradan automáticamente; las búsquedas de enciclopedia/diccionario nunca califican.
 - Logs: `data/logs/weekly.log`. Ejecución manual en cualquier momento: `npm run weekly`.
-- Desinstalar: `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
+- Desinstalar todo (los tres agentes): `for a in weekly heartbeat serve; do launchctl bootout gui/$UID/com.browstack.$a; rm ~/Library/LaunchAgents/com.browstack.$a.plist; done`
 
 ### Números y archivo
 

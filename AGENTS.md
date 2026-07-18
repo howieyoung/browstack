@@ -85,6 +85,8 @@ npm run build:ext
 npm run serve     # local receiver on 127.0.0.1:8787 — keep running
 ```
 Then: `chrome://extensions` → Developer mode → Load unpacked → select `extension/`.
+Note: Step 7's `npm run schedule:weekly` installs the receiver as an always-on LaunchAgent
+(`com.browstack.serve`, KeepAlive) — after that, no terminal needs to stay open.
 
 ### Step 7 — Weekly automation
 ```bash
