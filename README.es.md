@@ -49,10 +49,10 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 
 - **Ingest** — lee la base de datos History local de Chrome (una copia — Chrome bloquea la original). Con Chrome Sync activado, la navegación de tu móvil se incluye automáticamente.
 - **Extensión (MV3)** — cuenta los segundos de lectura *activa* (pestaña visible + interacción reciente) y captura el texto del artículo en el momento en que lo lees, incluso tras muros de login. Habla **solo con `127.0.0.1`** — nada sale jamás de tu máquina.
-- **Classify** — regla dura: el contenido que no es de conocimiento (cotilleos, loterías, promociones, búsquedas rápidas) nunca entra en el número, por mucho que te quedaras. Las páginas sensibles (banca, correo, autenticación, servicios públicos) ni siquiera se almacenan.
-- **Enrich** — un LLM escribe tres puntos + una conclusión por artículo, y una línea de contexto editorial por publicación social.
+- **Classify** — regla dura: el contenido que no es de conocimiento nunca entra en el número, por mucho que te quedaras — cotilleos, loterías, compras/promociones, horarios de cine y venta/reserva de entradas, inscripciones a eventos y búsquedas rápidas. Todo lo que tiene que ver con *hacer o comprar* en lugar de *entender* queda fuera. Las páginas sensibles (banca, correo, autenticación, servicios públicos) ni siquiera se almacenan.
+- **Enrich** — un LLM escribe tres puntos + una conclusión por artículo, y una línea de contexto editorial por publicación social — **en el idioma en que realmente lees** (detectado automáticamente; anúlalo con `contentLanguage` en `userConfig.ts`).
 - **Cover** — un director de arte LLM destila la semana en una única metáfora visual, y un motor de imagen la pinta bajo una dirección artística fija (gouache plano, paleta limitada, generoso espacio negativo — sin texto en la obra).
-- **Render & send** — cabecera de revista (número №, rango de fechas, logotipo, lema), resúmenes agrupados por tema, estadísticas semanales. Cada pieza muestra **cuánto tiempo la leíste esa semana** — la razón por la que fue elegida. Enviado por tu propio Gmail SMTP con la portada incrustada como adjunto CID.
+- **Render & send** — cabecera de revista (número №, rango de fechas, logotipo, lema), resúmenes agrupados por tema, estadísticas semanales y un **digest de lectura** de una línea con los temas de la semana (que además se convierte en el asunto del correo). Cada pieza muestra **cuánto tiempo la leíste esa semana** — la razón por la que fue elegida. Enviado por tu propio Gmail SMTP con la portada incrustada como adjunto CID.
 - **Sin bucle de autoalimentación** — al enviarse un número, sus piezas quedan selladas (`published_in`) y no pueden reaparecer, aunque las revisites desde el propio digest.
 
 ## Principios de privacidad
@@ -172,9 +172,13 @@ Los artefactos también se acumulan en disco en `out/` (versiones web + email po
 
 ## Principios editoriales
 
-- **El conocimiento es una puerta dura.** Cotilleos de entretenimiento, loterías, promociones de compras, inscripciones a eventos y búsquedas rápidas tipo diccionario quedan excluidos sin importar el tiempo de permanencia.
+- **El conocimiento es una puerta dura.** Cotilleos de entretenimiento, loterías, promociones de compras, horarios de cine y venta/reserva de entradas, inscripciones a eventos y búsquedas rápidas tipo diccionario quedan excluidos sin importar el tiempo de permanencia — todo lo que tiene que ver con *hacer o comprar* en lugar de *entender*.
 - **Los resúmenes deben sustituir al original.** Tres puntos ≤ 42 caracteres + una conclusión ≤ 32 caracteres por artículo.
 - **El número es un artefacto.** Paleta fija, cabecera serif, numeración de números — la belleza hace que lo abras, la calidad del contenido hace que lo termines.
+
+## Idiomas
+
+Browstack es consciente del idioma. El **contenido generado** — etiquetas de temas, resúmenes, el digest de lectura semanal y el concepto de portada — se escribe en el idioma en que realmente lees, detectado automáticamente a partir de tu navegación (las etiquetas de idioma de página de Chrome, con una heurística de escritura como respaldo). Define `contentLanguage` en `src/shared/userConfig.ts` (un código BCP-47 como `"en"` / `"ja"` / `"zh-TW"`, un nombre de idioma o `"auto"`) para forzarlo. Los prompts de generación de imágenes se mantienen en inglés en cualquier caso (los modelos de imagen lo esperan). La **UI fija** — el marco del número, el correo y la vitrina del archivo — está localizada en inglés y chino tradicional, con el inglés como respaldo para otros locales.
 
 ## Hoja de ruta
 

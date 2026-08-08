@@ -49,10 +49,10 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 
 - **Ingest** — reads Chrome's local History database (a copy — Chrome locks the original). If Chrome Sync is on, your phone's browsing is included automatically.
 - **Extension (MV3)** — counts *active* reading seconds (tab visible + recent interaction) and captures article text at the moment you read it, including behind login walls. Talks **only to `127.0.0.1`** — nothing ever leaves your machine.
-- **Classify** — hard rule: non-knowledge content (gossip, lotteries, promos, quick lookups) never makes the issue, no matter how long you lingered. Sensitive pages (banking, mail, auth, government services) are never even stored.
-- **Enrich** — an LLM writes three bullets + one takeaway per article, and a one-line editorial context per social post.
+- **Classify** — hard rule: non-knowledge content never makes the issue, no matter how long you lingered — gossip, lotteries, shopping/promos, movie showtimes & ticketing/booking, event signups, and quick lookups. Anything about *doing or buying* rather than *understanding* is out. Sensitive pages (banking, mail, auth, government services) are never even stored.
+- **Enrich** — an LLM writes three bullets + one takeaway per article, and a one-line editorial context per social post — **in the language you actually read** (auto-detected; override with `contentLanguage` in `userConfig.ts`).
 - **Cover** — an LLM art director distills the week into a single visual metaphor, then an image engine renders it under a fixed art direction (flat gouache, limited palette, generous negative space — no text in the art).
-- **Render & send** — magazine nameplate (issue №, date range, wordmark, tagline), topic-grouped summaries, weekly stats. Every item shows **how long you read it that week** — the reason it was picked. Sent via your own Gmail SMTP with the cover inlined as a CID attachment.
+- **Render & send** — magazine nameplate (issue №, date range, wordmark, tagline), topic-grouped summaries, weekly stats, and a one-line **reading digest** of the week's themes (it also becomes the email subject). Every item shows **how long you read it that week** — the reason it was picked. Sent via your own Gmail SMTP with the cover inlined as a CID attachment.
 - **No self-feeding loop** — once an issue is sent, its items are sealed (`published_in`) and can never reappear, even if you revisit them from the digest itself.
 
 ## Privacy principles
@@ -172,9 +172,13 @@ Artifacts also accumulate on disk under `out/` (web + email versions per issue) 
 
 ## Editorial principles
 
-- **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, event signups and dictionary-style quick lookups are excluded regardless of dwell time.
+- **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, movie showtimes and ticketing/booking, event signups, and dictionary-style quick lookups are excluded regardless of dwell time — anything about *doing or buying* rather than *understanding*.
 - **Summaries must replace the original.** Three bullets ≤ 42 chars + one takeaway ≤ 32 chars per article.
 - **The issue is an artifact.** Fixed palette, serif nameplate, issue numbering — beauty gets it opened, content quality gets it finished.
+
+## Languages
+
+Browstack is language-aware. **Generated content** — topic labels, summaries, the weekly reading digest, and the cover concept — is written in the language you actually read, auto-detected from your browsing (Chrome's page-language tags, falling back to a script heuristic). Set `contentLanguage` in `src/shared/userConfig.ts` (a BCP-47 code like `"en"` / `"ja"` / `"zh-TW"`, a language name, or `"auto"`) to force it. Image-generation prompts stay English regardless (image models expect it). The **fixed UI** — issue chrome, email, and the archive showcase — is localized in English and Traditional Chinese, with English as the fallback for other locales.
 
 ## Roadmap
 

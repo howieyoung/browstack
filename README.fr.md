@@ -49,10 +49,10 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 
 - **Ingest** — lit la base History locale de Chrome (une copie — Chrome verrouille l'original). Si Chrome Sync est activé, la navigation de votre téléphone est incluse automatiquement.
 - **Extension (MV3)** — compte les secondes de lecture *active* (onglet visible + interaction récente) et capture le texte de l'article au moment où vous le lisez, y compris derrière les murs de connexion. Ne parle **qu'à `127.0.0.1`** — rien ne quitte jamais votre machine.
-- **Classify** — règle stricte : le contenu qui n'est pas de la connaissance (potins, loteries, promos, recherches éclair) n'entre jamais dans le numéro, quel que soit le temps passé. Les pages sensibles (banque, e-mail, authentification, services publics) ne sont même pas stockées.
-- **Enrich** — un LLM rédige trois points + une conclusion par article, et une ligne de contexte éditorial par publication sociale.
+- **Classify** — règle stricte : le contenu qui n'est pas de la connaissance n'entre jamais dans le numéro, quel que soit le temps passé — potins, loteries, shopping/promos, horaires de cinéma et billetterie/réservation, inscriptions à des événements, et recherches éclair. Tout ce qui relève de *faire ou acheter* plutôt que de *comprendre* est écarté. Les pages sensibles (banque, e-mail, authentification, services publics) ne sont même jamais stockées.
+- **Enrich** — un LLM rédige trois points + une conclusion par article, et une ligne de contexte éditorial par publication sociale — **dans la langue que vous lisez réellement** (détectée automatiquement ; à remplacer via `contentLanguage` dans `userConfig.ts`).
 - **Cover** — un directeur artistique LLM distille la semaine en une seule métaphore visuelle, puis un moteur d'image la peint sous une direction artistique fixe (gouache plate, palette limitée, généreux espace négatif — aucun texte dans l'œuvre).
-- **Render & send** — bandeau de magazine (numéro №, période, logotype, devise), résumés groupés par thème, statistiques hebdomadaires. Chaque pièce affiche **combien de temps vous l'avez lue cette semaine-là** — la raison de sa sélection. Envoyé via votre propre Gmail SMTP avec la couverture intégrée en pièce jointe CID.
+- **Render & send** — bandeau de magazine (numéro №, période, logotype, devise), résumés groupés par thème, statistiques hebdomadaires, et un **digest de lecture** d'une ligne sur les thèmes de la semaine (qui devient aussi l'objet de l'e-mail). Chaque pièce affiche **combien de temps vous l'avez lue cette semaine-là** — la raison de sa sélection. Envoyé via votre propre Gmail SMTP avec la couverture intégrée en pièce jointe CID.
 - **Pas de boucle d'auto-alimentation** — une fois un numéro envoyé, ses pièces sont scellées (`published_in`) et ne peuvent jamais réapparaître, même si vous les relisez depuis le digest lui-même.
 
 ## Principes de confidentialité
@@ -172,9 +172,13 @@ Les artefacts s'accumulent aussi sur le disque dans `out/` (versions web + e-mai
 
 ## Principes éditoriaux
 
-- **La connaissance est un filtre strict.** Potins people, loteries, promos shopping, inscriptions à des événements et recherches éclair type dictionnaire sont exclus quel que soit le temps de lecture.
+- **La connaissance est un filtre strict.** Potins people, loteries, promos shopping, horaires de cinéma et billetterie/réservation, inscriptions à des événements et recherches éclair type dictionnaire sont exclus quel que soit le temps de lecture — tout ce qui relève de *faire ou acheter* plutôt que de *comprendre*.
 - **Les résumés doivent remplacer l'original.** Trois points ≤ 42 caractères + une conclusion ≤ 32 caractères par article.
 - **Le numéro est un artefact.** Palette fixe, bandeau serif, numérotation — la beauté le fait ouvrir, la qualité du contenu le fait finir.
+
+## Langues
+
+Browstack tient compte de la langue. Le **contenu généré** — libellés de thèmes, résumés, le digest de lecture hebdomadaire et le concept de couverture — est rédigé dans la langue que vous lisez réellement, détectée automatiquement à partir de votre navigation (les balises de langue de page de Chrome, avec repli sur une heuristique d'écriture). Renseignez `contentLanguage` dans `src/shared/userConfig.ts` (un code BCP-47 comme `"en"` / `"ja"` / `"zh-TW"`, un nom de langue, ou `"auto"`) pour la forcer. Les prompts de génération d'images restent en anglais quoi qu'il arrive (les modèles d'image l'attendent). L'**interface fixe** — habillage du numéro, e-mail et vitrine des archives — est localisée en anglais et en chinois traditionnel, avec l'anglais comme repli pour les autres locales.
 
 ## Feuille de route
 
