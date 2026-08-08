@@ -136,16 +136,36 @@ const uid = process.getuid();
 const laDir = path.join(home, "Library", "LaunchAgents");
 fs.mkdirSync(laDir, { recursive: true });
 
+// Synchronous sleep (no sleep binary, no async in this install flow)
+const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+// Bootout, then wait until launchd has actually released the label. `bootout` returns before teardown
+// finishes, and bootstrapping into a domain that still holds the (KeepAlive) label races and fails with
+// "Bootstrap failed: 5: Input/output error", leaving the resident receiver DOWN. Poll until it's gone.
+function bootoutAndWait(agentLabel) {
+  spawnSync("launchctl", ["bootout", `gui/${uid}/${agentLabel}`], { stdio: "ignore" }); // may already be absent; that's fine
+  for (let i = 0; i < 30; i++) {
+    const present = spawnSync("launchctl", ["print", `gui/${uid}/${agentLabel}`], { stdio: "ignore" });
+    if (present.status !== 0) return; // no longer registered → safe to bootstrap
+    sleepMs(100);
+  }
+}
+
 function installAgent(agentLabel, xml) {
   const plistPath = path.join(laDir, `${agentLabel}.plist`);
   fs.writeFileSync(plistPath, xml);
-  spawnSync("launchctl", ["bootout", `gui/${uid}/${agentLabel}`], { stdio: "ignore" }); // bootout the old version first; failure is fine
-  const boot = spawnSync("launchctl", ["bootstrap", `gui/${uid}`, plistPath], { encoding: "utf8" });
-  if (boot.status !== 0) {
-    console.error(`launchctl bootstrap ${agentLabel} failed: ${boot.stderr || boot.stdout}`);
-    process.exit(1);
+  bootoutAndWait(agentLabel);
+  // Even after the label clears, launchd can briefly return a transient EIO; retry a few times before giving up.
+  let boot;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    boot = spawnSync("launchctl", ["bootstrap", `gui/${uid}`, plistPath], { encoding: "utf8" });
+    if (boot.status === 0) return plistPath;
+    if (!/Input\/output error|Bootstrap failed|already/i.test(boot.stderr || boot.stdout || "")) break; // non-transient → fail now
+    sleepMs(300);
+    bootoutAndWait(agentLabel); // clear any half-registered state, then try again
   }
-  return plistPath;
+  console.error(`launchctl bootstrap ${agentLabel} failed: ${boot.stderr || boot.stdout}`);
+  process.exit(1);
 }
 
 // Agents run through a wrapper that resolves node at runtime (no baked node path), executing
