@@ -112,7 +112,8 @@ export function renderArchiveIndex(): string {
   const t = ui(locale.code);
   const cards = listIssues()
     .map((i) => {
-      const label = i.title ? `№${i.number} · ${esc(i.title)}` : `№${i.number}`;
+      const dt = i.number === 0 ? t.inauguralTitle : i.title;
+      const label = dt ? `№${i.number} · ${esc(dt)}` : `№${i.number}`;
       const status = i.sent_at ? t.statusSent(t.date(i.sent_at)) : t.statusEditing;
       const { articles, social } = issueCounts(i.number);
       const digest = issueDigest(i.number);

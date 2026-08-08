@@ -38,10 +38,12 @@ export interface UIStrings {
   statusEditing: string;
   coverAlt: (n: number) => string;
   archiveFooter: string;
+  // issue №0's special title
+  inauguralTitle: string;
   // email
   emailArchiveButton: string;
   emailArchiveCaption: string;
-  emailSubject: (n: number, title: string) => string;
+  emailSubject: (n: number, title: string, digest: string | null) => string;
 }
 
 const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -81,9 +83,13 @@ const en: UIStrings = {
   statusEditing: "In progress",
   coverAlt: (n) => `Issue ${n} cover`,
   archiveFooter: "YOUR DATA NEVER LEFT THIS MACHINE · PUBLISHED FOR AN AUDIENCE OF ONE",
+  inauguralTitle: "Inaugural Preview",
   emailArchiveButton: "Open your archive in the browser →",
   emailArchiveCaption: "Opens on this Mac while Browstack is running",
-  emailSubject: (n, title) => `Browstack №${n}${title ? " — " + title : ""} — your week in reading, in print`,
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n} — ${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""} — your week in reading, in print`,
 };
 
 const zhTW: UIStrings = {
@@ -121,9 +127,13 @@ const zhTW: UIStrings = {
   statusEditing: "編輯中",
   coverAlt: (n) => `第 ${n} 期封面插畫`,
   archiveFooter: "資料未離開這台機器 · PUBLISHED FOR AN AUDIENCE OF ONE",
+  inauguralTitle: "創刊預覽號",
   emailArchiveButton: "在瀏覽器開啟你的典藏 →",
   emailArchiveCaption: "在這台 Mac 上、Browstack 服務運行時開啟",
-  emailSubject: (n, title) => `Browstack №${n}${title ? " — " + title : ""}｜你的一週閱讀，成刊了`,
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n}｜${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""}｜你的一週閱讀，成刊了`,
 };
 
 const TABLE: Record<string, UIStrings> = { en, "zh-tw": zhTW };

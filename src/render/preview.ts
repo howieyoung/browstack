@@ -85,7 +85,8 @@ const archiveRows = listIssues()
     const emailFile = `browstack-issue-${i.number}.email.html`;
     const emailLink = fs.existsSync(path.join(outDir, emailFile)) ? ` · <a href="${emailFile}">${zh ? "email 版" : "email"}</a>` : "";
     const status = i.sent_at ? t.statusSent(t.date(i.sent_at)) : t.statusEditing;
-    return `<li><a href="browstack-issue-${i.number}.html"><b>№${i.number}${i.title ? " · " + i.title : ""}</b></a>
+    const dt = i.number === 0 ? t.inauguralTitle : i.title;
+    return `<li><a href="browstack-issue-${i.number}.html"><b>№${i.number}${dt ? " · " + dt : ""}</b></a>
       <span>${t.date(i.week_start)} — ${t.date(i.week_end)} · ${status}${coverLink}${emailLink}</span></li>`;
   })
   .join("\n");

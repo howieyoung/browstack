@@ -163,7 +163,8 @@ export function renderIssueDocument(params: {
   const { issue, articles, socialPosts, stats, coverHtml, digest, localeCode } = params;
   const t = ui(localeCode);
   const digestHtml = digest ? `<p class="issue-digest">${esc(digest)}</p>` : "";
-  const issueLabel = issue.title ? `№${issue.number} · ${issue.title}` : `№${issue.number}`;
+  const displayTitle = issue.number === 0 ? t.inauguralTitle : issue.title;
+  const issueLabel = displayTitle ? `№${issue.number} · ${displayTitle}` : `№${issue.number}`;
   const mobilePct = stats.totalVisits > 0 ? Math.round((100 * stats.mobileVisits) / stats.totalVisits) : 0;
   return `<!doctype html>
 <html lang="${localeCode}">

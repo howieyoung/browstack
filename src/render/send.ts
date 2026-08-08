@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import { ensureArchiveToken } from "../archiveToken.js";
 import { CONFIG } from "../config.js";
 import { ui } from "../i18n.js";
-import { findCover, getCurrentIssue, markIssueSent } from "../issue.js";
+import { findCover, getCurrentIssue, issueDigest, markIssueSent } from "../issue.js";
 import { resolveContentLocale } from "../locale.js";
 import { SHARED } from "../shared/settings.js";
 
@@ -72,7 +72,11 @@ const transporter = nodemailer.createTransport({
 const info = await transporter.sendMail({
   from: `Browstack <${CONFIG.email.from}>`,
   to: CONFIG.email.to,
-  subject: t.emailSubject(issue.number, issue.title),
+  subject: t.emailSubject(
+    issue.number,
+    issue.number === 0 ? t.inauguralTitle : issue.title,
+    issueDigest(issue.number),
+  ),
   html,
   attachments,
 });
