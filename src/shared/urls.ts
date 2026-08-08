@@ -1,10 +1,11 @@
 /**
- * URL 與標題正規化——同一篇內容的不同「分身」必須被視為同一篇。
- * 典型病因：Facebook/IG/Google 的點擊追蹤參數（每次點擊都不同），
- * 讓同一篇文章在 Chrome 紀錄裡變成多個 URL → 多個頁面 → 刊物內重複。
+ * URL and title normalization — different "aliases" of the same content must be
+ * treated as one. Common cause: Facebook/IG/Google click-tracking params (unique
+ * per click) turn one article into multiple URLs in Chrome history → multiple
+ * pages → duplicates within the issue.
  */
 
-// 純追蹤用的 query 參數（不影響頁面內容），正規化時一律剝除
+// Pure tracking query params (don't affect page content); always stripped during normalization.
 const TRACKING_PARAMS = new Set([
   "fbclid", "gclid", "dclid", "msclkid", "twclid", "ttclid",
   "igshid", "igsh", "mibextid",
@@ -30,7 +31,7 @@ export function normalizeUrl(raw: string): string {
   }
 }
 
-// 標題正規化：去通知計數前綴「(3) 」、去站名後綴「｜聯合新聞網」，取前 60 字作為識別鍵
+// Title normalization: strip the notification-count prefix "(3) " and the site-name suffix "｜UDN", take the first 60 chars as the identity key.
 export function normalizeTitle(t: string): string {
   return t.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim().slice(0, 60);
 }

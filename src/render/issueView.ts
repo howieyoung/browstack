@@ -2,10 +2,11 @@ import { esc, safeHref } from "../shared/html.js";
 import type { IssueItem } from "./select.js";
 
 /**
- * 單期網頁版的唯一渲染來源——preview（當前期,即時資料）與 archive（過刊,由 DB 重建）共用,
- * 確保兩者外觀完全一致(這正是抽出本模組的目的:兩版永不分岔)。
- * cover 的嵌入方式由呼叫端決定(preview 用 data-URI／內嵌 SVG;archive 用同源 /covers/N),
- * 以 coverHtml 參數傳入。
+ * Single source of truth for rendering one issue's web view — shared by preview
+ * (current issue, live data) and archive (past issues, rebuilt from the DB),
+ * so both look exactly alike (the whole point of this module: the two views never diverge).
+ * How the cover is embedded is decided by the caller (preview uses a data-URI / inline SVG;
+ * archive uses same-origin /covers/N), passed in via the coverHtml param.
  */
 
 export interface IssueStats {
@@ -16,8 +17,8 @@ export interface IssueStats {
   readingMinutes: number;
 }
 
-// 摘要是 enrich 寫入的 JSON;仍以 try/catch 防禦——單一列的損毀／舊格式摘要
-// 不該讓整個典藏頁 500/400,退化成空卡片即可。
+// The summary is JSON written by enrich; still guard with try/catch — a single
+// corrupt/legacy-format summary row shouldn't 500/400 the whole archive page; just degrade to an empty card.
 function parseSummary<T>(s: string | null): T {
   try {
     return JSON.parse(s ?? "{}") as T;
@@ -28,7 +29,7 @@ function parseSummary<T>(s: string | null): T {
 
 const cleanTitle = (s: string) => esc(s.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim());
 const deviceLabel = (d: string) => (d === "both" ? "桌機＋手機" : d === "mobile" ? "手機" : "桌機");
-// 你當時讀了多久——這就是它被選進本期的原因
+// How long you read it back then — that's why it made this issue
 const signalLabel = (i: IssueItem) =>
   i.active_min > 0
     ? `⚡ 本週你實讀了 ${i.active_min} 分鐘`
@@ -47,7 +48,7 @@ const hostOf = (u: string) => {
 const sourceOf = (u: string) =>
   /threads\./.test(u) ? "Threads" : /facebook\./.test(u) ? "Facebook" : /linkedin\./.test(u) ? "LinkedIn" : "社群";
 
-// 01 · 本週深讀:依主題分組,組內卡片,全域流水編號
+// 01 · This week's deep reads: grouped by topic, cards within each group, globally sequential numbering
 function renderArticles(articles: IssueItem[]): string {
   const topicGroups = new Map<string, IssueItem[]>();
   for (const a of articles) {
@@ -80,7 +81,7 @@ function renderArticles(articles: IssueItem[]): string {
     .join("\n");
 }
 
-// 02 · 社群迴響
+// 02 · Social echoes
 function renderSocial(socialPosts: IssueItem[]): string {
   return socialPosts
     .map((p) => {
@@ -157,7 +158,7 @@ const STYLE = `
   .colophon { text-align: center; padding: 36px 64px 44px; border-top: 3px double var(--rule);
     font-size: 11px; letter-spacing: .3em; color: var(--muted); line-height: 2.4; }`;
 
-// 完整單期網頁。coverHtml 由呼叫端提供(preview:data-URI／SVG;archive:/covers/N)。
+// Full single-issue web page. coverHtml is provided by the caller (preview: data-URI / SVG; archive: /covers/N).
 export function renderIssueDocument(params: {
   issue: { number: number; title: string; week_start: number; week_end: number };
   articles: IssueItem[];

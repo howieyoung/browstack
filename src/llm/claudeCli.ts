@@ -2,9 +2,9 @@ import { spawn } from "node:child_process";
 import type { LLMProvider } from "./provider.js";
 
 /**
- * 用本機 Claude Code CLI（claude -p）當 LLM——走用戶既有訂閱，不需另管 API key。
- * 需要先在終端機執行過 claude /login。
- * 可選指定 model（如 "opus"）與高思考等級——封面 SVG 後備等重活會用最強配置。
+ * Uses the local Claude Code CLI (claude -p) as the LLM — rides the user's existing subscription, no separate API key to manage.
+ * Requires having run claude /login in the terminal first.
+ * Optionally specify a model (e.g. "opus") and a high thinking level — heavy jobs like the cover SVG fallback use the strongest configuration.
  */
 export class ClaudeCliProvider implements LLMProvider {
   readonly name = "claude-cli";
@@ -16,7 +16,7 @@ export class ClaudeCliProvider implements LLMProvider {
   complete(opts: { system?: string; prompt: string; maxTokens?: number }): Promise<string> {
     const full = opts.system ? `${opts.system}\n\n${opts.prompt}` : opts.prompt;
     return new Promise((resolve, reject) => {
-      // 保留完整環境（Keychain 憑證需要），只移除會干擾認證的 Claude session 變數
+      // Keep the full environment (needed for Keychain credentials), only removing the Claude session variables that interfere with auth
       const env: Record<string, string | undefined> = { ...process.env };
       for (const key of Object.keys(env)) {
         if (
@@ -34,7 +34,7 @@ export class ClaudeCliProvider implements LLMProvider {
       const child = spawn("claude", args, { env, stdio: ["pipe", "pipe", "pipe"] });
       let out = "";
       let err = "";
-      // 批次工作（分類/摘要/繪圖）都是離線執行，冷啟動＋token 刷新下 3 分鐘不夠——預設給 10 分鐘
+      // Batch jobs (classify/summarize/draw) all run offline; with cold start + token refresh, 3 minutes isn't enough — default to 10 minutes
       const timeoutMs = this.cliOpts.timeoutMs ?? 600_000;
       const timer = setTimeout(() => {
         child.kill();

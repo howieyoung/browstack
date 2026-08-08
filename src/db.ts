@@ -70,7 +70,7 @@ export function getDb(): Database.Database {
       sent_at INTEGER
     );
 
-    -- 本期選用了哪些頁面（email 渲染時寫入；封刊時據此標記 published_in）
+    -- Which pages were selected for this issue (written when rendering the email; used at close-out to mark published_in)
     CREATE TABLE IF NOT EXISTS issue_items (
       issue_number INTEGER NOT NULL,
       page_id INTEGER NOT NULL REFERENCES pages(id),
@@ -96,25 +96,25 @@ export function getDb(): Database.Database {
   return db;
 }
 
-// 輕量 migration：既有 DB 補欄位
+// Lightweight migration: add columns to existing DBs
 function migrate(db: Database.Database): void {
   const cols = db.pragma("table_info(pages)") as Array<{ name: string }>;
   const addColumn = (name: string, ddl: string) => {
     if (!cols.some((c) => c.name === name)) db.exec(`ALTER TABLE pages ADD COLUMN ${ddl}`);
   };
   addColumn("active_seconds_total", "active_seconds_total REAL NOT NULL DEFAULT 0");
-  // 知識型內容判定（NULL=未分類）：非知識型內容無論停留多久都不入刊
+  // Knowledge-content flag (NULL = unclassified): non-knowledge content is never included regardless of dwell time
   addColumn("is_knowledge", "is_knowledge INTEGER");
   addColumn("topic", "topic TEXT");
-  // 已刊登於第 N 期（封刊時標記）：刊登過的內容永不再入選，
-  // 避免「讀了自己的週刊 → 內容下週又被推薦」的自我迴圈
+  // Published in issue N (marked at close-out): once published, content is never selected again,
+  // avoiding the self-loop of "read your own newsletter → content gets recommended again next week"
   addColumn("published_in", "published_in INTEGER");
 }
 
 /**
- * 冪等收緊本機資料檔權限——不只在建立時,每次開 DB 都跑一遍,
- * 才能一併修好既有安裝的舊檔（多數是 umask 022 留下的 0644,同機其他 OS 帳號可讀）。
- * data/、out/、assets/covers/ → 0700;DB（含 -wal/-shm）與 logs → 0600。best-effort,失敗不擋。
+ * Idempotently tighten local data-file permissions — run not only at creation but on every DB open,
+ * so it also fixes older files from existing installs (mostly 0644 left by umask 022, readable by other OS accounts on the machine).
+ * data/, out/, assets/covers/ → 0700; the DB (including -wal/-shm) and logs → 0600. Best-effort, failures don't block.
  */
 export function hardenPerms(): void {
   const root = path.join(CONFIG.dataDir, "..");
@@ -122,7 +122,7 @@ export function hardenPerms(): void {
     try {
       if (fs.existsSync(p)) fs.chmodSync(p, mode);
     } catch {
-      // 權限無法變更（唯讀 volume 等）時不擋流程
+      // Don't block the flow when permissions can't be changed (read-only volume, etc.)
     }
   };
   for (const dir of [CONFIG.dataDir, path.join(root, "out"), path.join(root, "assets", "covers")]) {
@@ -135,7 +135,7 @@ export function hardenPerms(): void {
   try {
     for (const f of fs.readdirSync(logsDir)) chmodSafe(path.join(logsDir, f), 0o600);
   } catch {
-    // logs/ 尚未建立
+    // logs/ not yet created
   }
 }
 

@@ -6,7 +6,7 @@ import { classifyUrl } from "../classify/filter.js";
 import { getDb, getMeta, setMeta, type Device } from "../db.js";
 import { normalizeUrl } from "../shared/urls.js";
 
-// Chrome 時間軸：自 1601-01-01 起算的微秒
+// Chrome timeline: microseconds since 1601-01-01.
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
 const chromeToUnixSec = (t: number) => Math.floor(t / 1_000_000 - CHROME_EPOCH_OFFSET_SEC);
 
@@ -27,7 +27,7 @@ export interface IngestSummary {
   kinds: Record<string, number>;
 }
 
-// Chrome 執行中會鎖住 History DB，一律先複製一份再讀
+// A running Chrome locks the History DB, so always copy it first and read the copy.
 function copyHistoryDb(): string {
   const src = path.join(CONFIG.chromeProfileDir, "History");
   const tmpDir = path.join(CONFIG.dataDir, "tmp");
@@ -87,7 +87,7 @@ export function ingestChromeHistory(): IngestSummary {
 
   db.transaction(() => {
     for (const row of rows) {
-      // 正規化：剝除 fbclid/utm_* 等追蹤參數，同一篇內容的多次點擊合併為同一頁
+      // Normalize: strip tracking params like fbclid/utm_*, merging multiple clicks on the same content into one page.
       const url = normalizeUrl(row.url);
       const { kind, sensitive } = classifyUrl(url);
       if (sensitive) {

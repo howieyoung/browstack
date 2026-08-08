@@ -1,4 +1,4 @@
-// postinstall：首次安裝時建立個人設定檔（gitignored），讓 fresh clone 開箱即用
+// postinstall: on first install, create the personal config file (gitignored) so a fresh clone works out of the box
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

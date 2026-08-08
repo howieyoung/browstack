@@ -1,11 +1,12 @@
 import { getDb } from "../db.js";
 import { fetchArticle } from "../fetch/extract.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
+import { resolveContentLanguage } from "../locale.js";
 import { normalizeTitle } from "../shared/urls.js";
 
 /**
- * M2 enrich 管線：知識分類 → 正文補抓 → 摘要。
- * 核心編輯原則（產品決策）：非知識型內容，無論停留多久都不入刊。
+ * M2 enrich pipeline: knowledge classification → body backfill → summarization.
+ * Core editorial principle (product decision): non-knowledge content never gets published, no matter how long it was viewed.
  */
 
 export interface Candidate {
@@ -36,7 +37,7 @@ export function getCandidates(): Candidate[] {
         WHERE last_seen > ? AND is_knowledge IS NULL AND published_in IS NULL
           AND title IS NOT NULL AND LENGTH(title) > 8`;
 
-  // 文章與社群優先入池，不讓高停留的 unknown 雜訊把它們擠掉
+  // Articles and social posts go into the pool first, so high-dwell unknown noise can't crowd them out
   const articleSocial = db
     .prepare(`${baseSelect} AND kind IN ('article', 'social') ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 30`)
     .all(weekAgo) as Candidate[];
@@ -45,7 +46,7 @@ export function getCandidates(): Candidate[] {
       .prepare(`${baseSelect} AND kind = 'unknown' ORDER BY active_seconds_total DESC, total_duration_sec DESC LIMIT 60`)
       .all(weekAgo) as Candidate[]
   )
-    // 根路徑是入口頁不是單篇內容（掛著沒關的首頁常累積巨量停留）
+    // The root path is a landing page, not a single piece of content (an unclosed homepage tab often racks up huge dwell time)
     .filter((c) => new URL(c.url).pathname !== "/")
     .slice(0, 20);
   return [...articleSocial, ...unknowns];
@@ -56,7 +57,7 @@ export function applyEnrichment(records: EnrichmentRecord[]): { updated: number;
   const update = db.prepare(
     "UPDATE pages SET is_knowledge = ?, topic = COALESCE(?, topic), summary = COALESCE(?, summary) WHERE id = ?",
   );
-  // LLM 判定為知識型的 unknown 頁面，升級為 article
+  // Unknown pages the LLM judges to be knowledge-type get upgraded to article
   const upgrade = db.prepare("UPDATE pages SET kind = 'article' WHERE id = ? AND kind = 'unknown'");
   let updated = 0;
   let upgraded = 0;
@@ -73,14 +74,21 @@ export function applyEnrichment(records: EnrichmentRecord[]): { updated: number;
 export async function classifyCandidates(candidates: Candidate[]): Promise<EnrichmentRecord[]> {
   if (candidates.length === 0) return [];
   const provider = getProvider();
+  const lang = resolveContentLanguage();
   const list = candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, host: new URL(c.url).hostname }));
   const reply = await provider.complete({
     system:
-      "你是 Browstack 個人週刊的選題編輯。只收錄知識型內容：科技、AI、產業分析、商業洞察、深度公共議題、專業知識、有觀點或資訊價值的社群貼文。" +
-      "一律排除：娛樂八卦、彩券、購物促銷、會員活動、網站專區或列表頁（非單篇內容）、純聊天或情緒抒發、廣告宣傳頁、" +
-      "以及所有「快查行為」——百科條目、字典查詢、單字問答、天氣、對獎，這些是查資料不是閱讀。",
+      "You are the commissioning editor of the Browstack personal weekly digest. Keep only knowledge-type " +
+      "content: technology, AI, industry analysis, business insight, substantive public-affairs pieces, " +
+      "professional knowledge, and social posts with a real point of view or informational value. " +
+      "Always exclude: entertainment gossip, lotteries, shopping promos, membership drives, site sections or " +
+      "list pages (not a single piece), pure chatter or venting, ad/marketing pages, and all 'quick lookup' " +
+      "behavior — encyclopedia entries, dictionary/word lookups, weather, prize checks — which is looking " +
+      "things up, not reading.",
     prompt:
-      `判斷以下候選內容，回傳 JSON array，每項格式 {"id": number, "is_knowledge": boolean, "topic": "2~6字中文主題標籤"}（非知識型的 topic 給 null）。只輸出 JSON。\n\n` +
+      `Classify the candidates below. Return a JSON array; each item ` +
+      `{"id": number, "is_knowledge": boolean, "topic": "a short topic label in ${lang} (2–4 words, or 2–6 characters for CJK)"} ` +
+      `(topic null when not knowledge-type). Output only JSON.\n\n` +
       JSON.stringify(list, null, 1),
     maxTokens: 4096,
   });
@@ -121,9 +129,10 @@ export async function fetchMissingContent(limit = 12): Promise<{ fetched: number
 export async function summarizeKnowledgePages(): Promise<number> {
   const db = getDb();
   const provider = getProvider();
+  const lang = resolveContentLanguage();
   const weekAgo = Math.floor(Date.now() / 1000) - DAYS * 86400;
 
-  // 文章：內文（或退而求其次用標題）→ 三個重點 + 一句 takeaway
+  // Articles: body (or the title as a fallback) → three bullets + one takeaway line
   const articles = db
     .prepare(
       `SELECT id, title, content_text FROM pages
@@ -134,7 +143,7 @@ export async function summarizeKnowledgePages(): Promise<number> {
     .all(weekAgo) as Array<{ id: number; title: string; content_text: string | null }>;
   const saveSummary = db.prepare("UPDATE pages SET summary = ? WHERE id = ?");
   const demote = db.prepare("UPDATE pages SET is_knowledge = 0 WHERE id = ?");
-  // 同文分身防浪費：已有摘要的知識文章標題集合，撞鍵者直接降級、不再花 LLM 摘要
+  // Avoid duplicate work: set of titles of already-summarized knowledge articles; a key collision gets demoted instead of spending another LLM summary
   const knownArticles = new Set(
     (
       db
@@ -146,29 +155,32 @@ export async function summarizeKnowledgePages(): Promise<number> {
   );
   let done = 0;
   for (const a of articles) {
-    // 品管：正文太短＝擷取失敗的空殼，寧缺勿濫，直接降級
+    // Quality control: a too-short body is an empty shell from a failed extraction; better to drop it than publish it, so demote
     if (!a.content_text || a.content_text.length < 300) {
       demote.run(a.id);
       continue;
     }
     const titleKey = normalizeTitle(a.title);
     if (knownArticles.has(titleKey)) {
-      demote.run(a.id); // 追蹤參數分身：同標題已有摘要
+      demote.run(a.id); // tracking-param duplicate: same title already summarized
       continue;
     }
     knownArticles.add(titleKey);
     const reply = await provider.complete({
-      system: "你是週刊編輯，把文章濃縮成足以取代原文閱讀的摘要。",
+      system: `You are a weekly-digest editor. Condense the article into a summary written in ${lang} that can replace reading the original.`,
       prompt:
-        `輸出 JSON：{"bullets": ["…", "…", "…"], "takeaway": "…"}。三個 bullet 各 ≤ 42 字，takeaway 是一句「為什麼值得記住」≤ 32 字。只輸出 JSON。\n\n` +
-        `標題：${a.title}\n內文節錄：${a.content_text.slice(0, 6000)}`,
+        `Output JSON: {"bullets": ["…", "…", "…"], "takeaway": "…"}, written in ${lang}. ` +
+        `Three bullets, each a single tight line (≈ ≤ 14 words, or ≤ 42 characters for CJK); ` +
+        `the takeaway is one line on "why this is worth remembering" (≈ ≤ 11 words, or ≤ 32 characters for CJK). ` +
+        `Output only JSON.\n\n` +
+        `Title: ${a.title}\nBody excerpt: ${a.content_text.slice(0, 6000)}`,
       maxTokens: 1024,
     });
     saveSummary.run(JSON.stringify(parseJsonReply(reply)), a.id);
     done++;
   }
 
-  // 社群貼文：title 已攜帶全文 → 一句脈絡
+  // Social posts: the title already carries the full text → one line of context
   const normalizePost = normalizeTitle;
   const existingPosts = new Set(
     (
@@ -189,7 +201,7 @@ export async function summarizeKnowledgePages(): Promise<number> {
       )
       .all(weekAgo) as Array<{ id: number; title: string }>
   ).filter((p) => {
-    // 品管：同一貼文常有多個 URL（分享路徑不同），內容重複即降級
+    // Quality control: the same post often has multiple URLs (different share paths); demote on duplicate content
     const key = normalizePost(p.title);
     if (existingPosts.has(key)) {
       demote.run(p.id);
@@ -200,9 +212,11 @@ export async function summarizeKnowledgePages(): Promise<number> {
   });
   if (posts.length > 0) {
     const reply = await provider.complete({
-      system: "你是週刊編輯。",
+      system: "You are a weekly-digest editor.",
       prompt:
-        `為每則社群貼文寫一句編輯脈絡（≤ 36 字，說明它在談什麼、為何值得記住）。回傳 JSON array：[{"id": number, "context": "…"}]。只輸出 JSON。\n\n` +
+        `For each social post, write one line of editorial context in ${lang} ` +
+        `(≈ ≤ 12 words, or ≤ 36 characters for CJK; what it is about and why it is worth remembering). ` +
+        `Return a JSON array: [{"id": number, "context": "…"}]. Output only JSON.\n\n` +
         JSON.stringify(posts.map((p) => ({ id: p.id, text: p.title.slice(0, 500) }))),
       maxTokens: 2048,
     });
@@ -214,7 +228,7 @@ export async function summarizeKnowledgePages(): Promise<number> {
   return done;
 }
 
-// 全自動 enrich：每週由排程呼叫
+// Fully automated enrich: called weekly by the scheduler
 export async function enrich(): Promise<void> {
   const candidates = getCandidates();
   console.log(`候選 ${candidates.length} 項，交由 ${getProvider().name} 分類…`);

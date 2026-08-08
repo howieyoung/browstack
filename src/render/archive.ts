@@ -5,9 +5,11 @@ import { renderIssueDocument, type IssueStats } from "./issueView.js";
 import type { IssueItem } from "./select.js";
 
 /**
- * 典藏頁的即時渲染（server 端）：整個櫥窗與每一期都由當前 DB 重建,不落地檔案。
- * 過刊（含只寄過 email、沒網頁版的期數）由 issues 週期 + issue_items + 已持久化的 pages.summary
- * 忠實重建;訊號（分鐘/實讀）以該期 stored 週窗重算,封面走同源 /covers/N。
+ * Live rendering of the archive (server-side): the whole showcase and every issue are rebuilt
+ * from the current DB, never written to disk. Past issues (including ones only sent by email,
+ * with no web version) are faithfully rebuilt from the issues cycle + issue_items + persisted
+ * pages.summary; signals (minutes/active reading) are recomputed over that issue's stored week
+ * window, and covers use same-origin /covers/N.
  */
 
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
@@ -17,7 +19,7 @@ const fmtDate = (sec: number) => {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 };
 
-// 依 stored 週窗 [start,end] 重算某期某類的入選項目（訊號以窗內造訪計算,與當初出刊一致）。
+// Recompute an issue's selected items of a given kind over the stored week window [start,end] (signals computed from in-window visits, consistent with the original publication).
 function reconstructItems(n: number, kind: "article" | "social", order: string): IssueItem[] {
   const db = getDb();
   const issue = db.prepare("SELECT week_start, week_end FROM issues WHERE number = ?").get(n) as
@@ -70,7 +72,7 @@ function statsForWindow(startUnix: number, endUnix: number): IssueStats {
   };
 }
 
-// 該期入選則數（櫥窗副標用）。№0 等無 issue_items 者回 0/0。
+// Count of selected items for an issue (used in the showcase subheading). Issues with no issue_items (e.g. №0) return 0/0.
 function issueCounts(n: number): { articles: number; social: number } {
   const row = getDb()
     .prepare(
@@ -84,7 +86,7 @@ function issueCounts(n: number): { articles: number; social: number } {
   return { articles: row.articles ?? 0, social: row.social ?? 0 };
 }
 
-// 單期網頁（由 DB 重建）。查無此期回 null（→ server 404）。
+// Single-issue web page (rebuilt from DB). Returns null if the issue isn't found (→ server 404).
 export function renderIssuePage(n: number): string | null {
   const db = getDb();
   const issue = db.prepare("SELECT * FROM issues WHERE number = ?").get(n) as Issue | undefined;
@@ -92,12 +94,12 @@ export function renderIssuePage(n: number): string | null {
   const articles = reconstructItems(n, "article", "active_min DESC, minutes DESC");
   const socialPosts = reconstructItems(n, "social", "minutes DESC");
   const stats = statsForWindow(issue.week_start, issue.week_end);
-  // 封面走同源路由（findCover exactOnly:本期封面或預設,絕不借用他期）
+  // Cover uses the same-origin route (findCover exactOnly: this issue's cover or the default, never borrow another issue's)
   const coverHtml = `<img src="/covers/${n}" alt="第 ${n} 期封面插畫" />`;
   return renderIssueDocument({ issue, articles, socialPosts, stats, coverHtml, digest: issueDigest(n) });
 }
 
-// 典藏櫥窗索引（由 listIssues 即時生成,連結走 /issues/N、封面走 /covers/N）。
+// Archive showcase index (generated live from listIssues; links go to /issues/N, covers to /covers/N).
 export function renderArchiveIndex(): string {
   const cards = listIssues()
     .map((i) => {
@@ -105,9 +107,9 @@ export function renderArchiveIndex(): string {
       const status = i.sent_at ? `已寄出 ${fmtDate(i.sent_at)}` : "編輯中";
       const { articles, social } = issueCounts(i.number);
       const digest = issueDigest(i.number);
-      // 當週閱讀速寫：這一期「你在讀什麼、在想什麼」的一句編輯理解
+      // Reading sketch for the week: a one-line editorial take on "what you were reading and thinking" this issue
       const digestHtml = digest ? `<span class="digest">${esc(digest)}</span>` : "";
-      // 統計副標：幾篇深讀、幾則社群迴響
+      // Stats subheading: how many deep reads, how many social echoes
       const statsHtml =
         articles + social > 0 ? `<span class="stats">${articles} 篇深讀 · ${social} 則社群迴響</span>` : "";
       return `<a class="card" href="/issues/${i.number}">

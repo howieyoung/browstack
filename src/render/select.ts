@@ -2,12 +2,12 @@ import { getDb } from "../db.js";
 import { normalizeTitle, normalizeUrl } from "../shared/urls.js";
 
 /**
- * 本期選材（preview 與 email 共用同一套邏輯，確保兩個版本內容一致）：
- * 1. 同期去重：以正規化 URL ＋正規化標題為識別鍵，同一篇內容只入選一次
- *    （追蹤參數分身、同文多連結一律合併，取訊號最強的那筆）
- * 2. 跨期去重：識別鍵與任何已刊登（published_in 非空）頁面相同者，永不再入選
- * 3. 誠實的「本週」訊號：分鐘數只加總本期窗口內的造訪（visits_log／captures），
- *    不再用終身累計值；單次造訪撞到 20 分鐘上限者標記 capped（顯示為「20+」）
+ * Issue item selection (preview and email share the same logic, so both versions stay consistent):
+ * 1. Within-issue dedup: keyed on normalized URL + normalized title, each piece is selected only once
+ *    (tracking-param duplicates and multiple links to the same content are merged, keeping the strongest-signal row)
+ * 2. Cross-issue dedup: any row whose key matches an already-published page (published_in non-null) is never selected again
+ * 3. Honest "this week" signal: minutes only sum visits within the issue window (visits_log/captures),
+ *    no longer lifetime totals; a single visit hitting the 20-minute cap is marked capped (displayed as "20+")
  */
 
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
@@ -22,7 +22,7 @@ export interface IssueItem {
   total_visits: number;
   minutes: number;
   active_min: number;
-  capped: number; // sqlite boolean（0/1）
+  capped: number; // sqlite boolean (0/1)
 }
 
 export function selectIssueItems(weekAgo: number): { articles: IssueItem[]; socialPosts: IssueItem[] } {
@@ -47,7 +47,7 @@ export function selectIssueItems(weekAgo: number): { articles: IssueItem[]; soci
       )
       .all(weekChrome, weekChrome, weekAgo, kind, weekAgo, limit) as IssueItem[];
 
-  // 已刊登內容的識別鍵——同鍵者永不再入選（涵蓋歷史上未合併的追蹤參數分身）
+  // Keys of already-published content — matching keys are never selected again (covers historically unmerged tracking-param duplicates)
   const seen = new Set<string>();
   const published = db
     .prepare("SELECT url, title FROM pages WHERE published_in IS NOT NULL")
@@ -69,7 +69,7 @@ export function selectIssueItems(weekAgo: number): { articles: IssueItem[]; soci
     return out;
   };
 
-  // 排序以本週真實訊號為準：實讀（extension）優先，其次窗口內停留
+  // Ordering is based on real signal for the week: actual reading (extension) first, then in-window dwell time
   const articles = dedupe(candidates("article", "active_min DESC, minutes DESC", 30), 10);
   const socialPosts = dedupe(candidates("social", "minutes DESC", 15), 6);
   return { articles, socialPosts };

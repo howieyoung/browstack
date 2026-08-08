@@ -7,9 +7,9 @@ import { esc, safeHref } from "../shared/html.js";
 import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
- * Email 版渲染器：讓週刊像一封真正的電子報寄進收件匣。
- * Email client 的限制：只用 inline style、不用 <style>/SVG/data-URI 圖片。
- * 封面圖在正式寄送管道（自建 email service）上線後改以 hosted URL 置入。
+ * Email renderer: makes the weekly read like a real newsletter landing in your inbox.
+ * Email-client constraints: use only inline styles, no <style>/SVG/data-URI images.
+ * The cover image will switch to a hosted URL once the real send channel (self-hosted email service) is live.
  */
 
 const DAYS = 7;
@@ -17,17 +17,17 @@ const db = getDb();
 const now = Math.floor(Date.now() / 1000);
 const weekAgo = now - DAYS * 86400;
 const issue = getCurrentIssue();
-const digest = issueDigest(issue.number); // 當週引言（沒有就不顯示）
+const digest = issueDigest(issue.number); // This week's intro line (not shown if absent)
 
 const { articles, socialPosts } = selectIssueItems(weekAgo);
 
-// 保險：空刊物絕不寄出（enrich 全掛時寧可這週停刊，也不寄一封空信）
+// Safety: never send an empty issue (if enrich fully fails, skip this week rather than send a blank email)
 if (articles.length + socialPosts.length === 0) {
   console.error("本期沒有任何已增潤的內容，拒絕產出空刊物。請先跑 npm run enrich。");
   process.exit(2);
 }
 
-// 記錄本期選材：封刊（send 成功）時據此把這些頁面標記為已刊登，永不重複入選
+// Record this issue's selection: on publish (successful send) these pages get marked as published so they're never re-selected
 db.transaction(() => {
   db.prepare("DELETE FROM issue_items WHERE issue_number = ?").run(issue.number);
   const ins = db.prepare("INSERT OR IGNORE INTO issue_items (issue_number, page_id) VALUES (?, ?)");
@@ -39,7 +39,7 @@ const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 };
-// 你當時讀了多久——這就是它被選進本期的原因（capped＝掛置分頁撞到 20 分上限，顯示為 20+）
+// How long you read it back then — that's why it made this issue (capped = an idle tab hit the 20-min ceiling, shown as 20+)
 const signalLabel = (i: IssueItem) =>
   i.active_min > 0
     ? `本週你實讀了 ${i.active_min} 分鐘`

@@ -4,7 +4,7 @@ export type PageKind = "article" | "social" | "media" | "noise" | "unknown";
 
 export interface Classification {
   kind: PageKind;
-  // 敏感頁面（金融、信箱、帳號）：連本地 DB 都不寫入
+  // Sensitive pages (finance, mail, accounts): not even written to the local DB
   sensitive: boolean;
 }
 
@@ -17,27 +17,27 @@ const SENSITIVE_HOST = [
   /^accounts\./,
   /paypal\.com$/,
   /^pay\./,
-  /^ebill\./, // 繳費平台
-  /(^|\.)gov\.tw$/, // 政府個人業務（勞保、報稅等）
-  /^auth\./, // 登入/MFA 頁
-  /(^|\.)(cathaybk|cathay-ins|taishinbank|firstbank|megabank)\.com\.tw$/, // 台灣金融機構（bank 關鍵字抓不到的）
+  /^ebill\./, // bill-payment platforms
+  /(^|\.)gov\.tw$/, // government personal services (labor insurance, tax filing, etc.)
+  /^auth\./, // login/MFA pages
+  /(^|\.)(cathaybk|cathay-ins|taishinbank|firstbank|megabank)\.com\.tw$/, // Taiwanese financial institutions (the ones the 'bank' keyword misses)
 ];
 
 const NOISE_HOST = [
   /^(www\.)?google\.com$/,
   /^(calendar|docs|drive|meet|keep|translate)\.google\.com$/,
-  /^news\.ycombinator\.com$/, // 連結樞紐頁，真正的內容在外部連結
-  /^github\.com$/, // v0 先視為工作雜訊；README/技術文閱讀情境之後重新評估
+  /^news\.ycombinator\.com$/, // link hub page; the real content is in the external links
+  /^github\.com$/, // treated as work noise for v0; revisit README/technical-doc reading scenarios later
   /^(dash|console|admin|app)\./,
   /^localhost(:\d+)?$/,
   /^127\.0\.0\.1(:\d+)?$/,
   /^[a-p]{32}$/, // chrome-extension://<id>
-  /^(claude\.(ai|com)|chatgpt\.com|perplexity\.ai)$/, // AI 對話工具是工作介面，不是閱讀內容
-  /(^|\.)(pchome\.com\.tw|momoshop\.com\.tw|shopee\.tw|ruten\.com\.tw)$/, // 購物
-  /^(platform|analytics|status|billing)\./, // 開發者主控台、帳務、監控
+  /^(claude\.(ai|com)|chatgpt\.com|perplexity\.ai)$/, // AI chat tools are a work interface, not reading content
+  /(^|\.)(pchome\.com\.tw|momoshop\.com\.tw|shopee\.tw|ruten\.com\.tw)$/, // shopping
+  /^(platform|analytics|status|billing)\./, // developer consoles, billing, monitoring
   /console\.aws\.amazon\.com$/,
-  /(^|\.)(sentry\.io|discord\.com|canva\.com|figma\.com|notion\.so|slack\.com)$/, // 工作工具
-  /(^|\.)(wikipedia\.org|wiktionary\.org|hinative\.com|moedict\.tw)$/, // 百科/字典＝快查行為，不是閱讀
+  /(^|\.)(sentry\.io|discord\.com|canva\.com|figma\.com|notion\.so|slack\.com)$/, // work tools
+  /(^|\.)(wikipedia\.org|wiktionary\.org|hinative\.com|moedict\.tw)$/, // encyclopedia/dictionary = quick-lookup behavior, not reading
 ];
 
 const SOCIAL_PERMALINK: Array<{ host: RegExp; path: RegExp }> = [
@@ -95,7 +95,7 @@ export function classifyUrl(rawUrl: string): Classification {
   }
   for (const { host: h, path: p } of SOCIAL_PERMALINK) {
     if (h.test(host)) {
-      // 符合 permalink 的是內容；其餘（動態牆、通知頁）是雜訊
+      // A permalink match is content; everything else (feeds, notification pages) is noise
       return { kind: p.test(pathname) ? "social" : "noise", sensitive: false };
     }
   }
@@ -108,7 +108,7 @@ export function classifyUrl(rawUrl: string): Classification {
     return { kind: "noise", sensitive: false };
   }
   if (ARTICLE_HOST_SUFFIX.some((s) => host === s || host.endsWith(`.${s}`))) {
-    // 內容站的首頁/列表頁不算文章
+    // A content site's homepage/list page doesn't count as an article
     if (pathname === "/" || pathname === "") return { kind: "noise", sensitive: false };
     return { kind: "article", sensitive: false };
   }

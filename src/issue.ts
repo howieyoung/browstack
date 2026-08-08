@@ -5,8 +5,8 @@ import { CONFIG } from "./config.js";
 import { getDb, getMeta } from "./db.js";
 
 /**
- * 期數與典藏：每一期有自己的編號、刊名、週期區間與封面。
- * 語義：寄出（send 成功）即封刊；下一次產出自動開新的一期。
+ * Issues and archive: each issue has its own number, title, week range, and cover.
+ * Semantics: a successful send closes the issue; the next generation automatically opens a new one.
  */
 
 export interface Issue {
@@ -18,13 +18,13 @@ export interface Issue {
   sent_at: number | null;
 }
 
-// 特殊刊名只保留給 №0（創刊預覽號）；正式期數以編號 №N 呈現——
-// 進展由期數本身傳達，「創刊」字樣不跟著每期跑，也避免「№2 — 第 2 期」的同義重複
+// A special title is reserved only for №0 (the launch preview issue); regular issues are shown by number as №N —
+// progression is conveyed by the number itself, so the "launch" wording doesn't tag along every issue, avoiding the redundant "№2 — issue 2"
 export function issueTitle(n: number): string {
   return n === 0 ? "創刊預覽號" : "";
 }
 
-// 目前這一期：沿用尚未寄出的最新一期；上一期已寄出則開新的一期
+// The current issue: reuse the latest unsent issue; if the previous one was already sent, open a new one
 export function getCurrentIssue(): Issue {
   const db = getDb();
   seedLegacy(db);
@@ -60,8 +60,8 @@ export function markIssueSent(n: number): void {
   const db = getDb();
   db.transaction(() => {
     db.prepare("UPDATE issues SET sent_at = ? WHERE number = ?").run(Math.floor(Date.now() / 1000), n);
-    // 封刊：本期選用的頁面標記為「已刊登」，之後任何一期都不再入選
-    // （否則用戶回頭讀自己的週刊，內容會在下週再次被推薦，形成自我迴圈）
+    // Close-out: mark this issue's selected pages as "published" so they're never selected in any future issue
+    // (otherwise, when the user rereads their own newsletter, the content gets recommended again next week, forming a self-loop)
     db.prepare(
       `UPDATE pages SET published_in = ?
         WHERE id IN (SELECT page_id FROM issue_items WHERE issue_number = ?)`,
@@ -75,18 +75,18 @@ export function listIssues(): Issue[] {
   return db.prepare("SELECT * FROM issues ORDER BY number DESC").all() as Issue[];
 }
 
-// 當週閱讀速寫：生成封面 prompt 之前對本週閱讀內容的一句編輯理解（由 render/digest.ts 產生,存 meta）。
-// 供刊頭（issueView）、典藏櫥窗、信件引言共用。沒有就回 null。
+// The week's reading sketch: a one-line editorial understanding of this week's reading, produced before the cover prompt is generated (created by render/digest.ts, stored in meta).
+// Shared by the masthead (issueView), the archive showcase, and the email intro. Returns null if absent.
 export function issueDigest(n: number): string | null {
   const d = getMeta(`issue_digest:${n}`);
   return d && d.trim().length > 0 ? d.trim() : null;
 }
 
 /**
- * 本期封面檔案：優先 issue-N.(png|jpg|svg) → 最近一期的封面（點陣圖優先）
- * → 隨庫附帶的預設封面（assets/cover-default.jpg，即創刊號封面）。
- * 全新 clone 尚未跑過 cover、或某週渲染失敗時，都能有一張完整封面，不擋出刊。
- * rasterOnly：email 的 CID 內嵌只吃點陣圖（png/jpg），svg 僅網頁版可用。
+ * This issue's cover file: prefer issue-N.(png|jpg|svg) → the most recent issue's cover (raster preferred)
+ * → the default cover bundled with the repo (assets/cover-default.jpg, i.e. the launch-issue cover).
+ * A brand-new clone that hasn't run cover yet, or a week whose render failed, still gets a complete cover and doesn't block publishing.
+ * rasterOnly: the email's CID embedding only accepts raster images (png/jpg); svg is available only in the web version.
  */
 export function findCover(n: number, opts: { rasterOnly?: boolean; exactOnly?: boolean } = {}): string | null {
   const exts = opts.rasterOnly ? (["png", "jpg"] as const) : (["png", "jpg", "svg"] as const);
@@ -100,7 +100,7 @@ export function findCover(n: number, opts: { rasterOnly?: boolean; exactOnly?: b
     const exact = path.join(dir, `issue-${n}.${ext}`);
     if (fs.existsSync(exact)) return exact;
   }
-  // exactOnly：典藏頁需忠實呈現——沒有本期封面就退回預設封面,絕不借用其他期的插畫張冠李戴
+  // exactOnly: the archive page must render faithfully — with no cover for this issue, fall back to the default cover, never borrowing another issue's illustration and mislabeling it
   if (opts.exactOnly) return defaultCover;
   if (!fs.existsSync(dir)) return orDefault(null);
   const pattern = opts.rasterOnly ? /^issue-\d+\.(png|jpg)$/ : /^issue-\d+\.(png|jpg|svg)$/;
@@ -115,7 +115,7 @@ export function findCover(n: number, opts: { rasterOnly?: boolean; exactOnly?: b
   return orDefault(pick ? path.join(dir, pick) : null);
 }
 
-// 單期時代的存量登記：issue-0 已產出並寄出過 → 記為已封刊，下一期從 №1 開始
+// Backfill for the single-issue era: issue-0 was already generated and sent → record it as closed, so the next issue starts from №1
 function seedLegacy(db: Database.Database): void {
   const { n } = db.prepare("SELECT COUNT(*) AS n FROM issues").get() as { n: number };
   if (n > 0) return;

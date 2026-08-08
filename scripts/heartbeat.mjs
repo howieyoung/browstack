@@ -1,8 +1,8 @@
-// Claude CLI 憑證保鮮心跳：每天以一個極小的呼叫讓 OAuth refresh 週期保持活躍，
-// 避免閒置一週後過期害出刊失敗；偵測到「曾經正常、現在失效」時用通知中心告警。
+// Claude CLI credential-freshness heartbeat: a tiny daily call keeps the OAuth refresh cycle active,
+// avoiding an idle-week expiry that would break publishing; alerts via Notification Center when it detects "was fine, now broken".
 //
-// 對非 CLI 用戶無害：沒安裝 claude 就靜默跳過；從未成功過（代表用戶走 API key、
-// 從不使用 CLI）也不告警——只有真正的憑證衰變才會吵你。
+// Harmless for non-CLI users: silently skips if claude isn't installed; and if it never once succeeded (meaning the user is on an API key,
+// never uses the CLI) it won't alert either — only genuine credential decay bothers you.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,13 +12,13 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const okMarker = path.join(repoRoot, "data", "logs", ".heartbeat-was-ok");
 const stamp = new Date().toString();
 
-// 接收服務健康檢查：裝了常駐 serve agent 卻連不上 127.0.0.1:8787 → 擷取資料正在流失,當天告警。
-// 沒裝 serve agent 的用戶不檢查（避免對只手動使用的人天天誤報）。
+// Receiver health check: if the resident serve agent is installed but 127.0.0.1:8787 is unreachable → capture data is being lost; alert that day.
+// Users without the serve agent aren't checked (avoids daily false alarms for manual-only users).
 const servePlist = path.join(home(), "Library", "LaunchAgents", "com.browstack.serve.plist");
 if (fs.existsSync(servePlist)) {
   let serverOk = false;
   try {
-    // 埠號與 src/shared/settings.ts 的 SHARED.serverPort 綁定（皆為 8787）;若那裡改埠,這裡要一起改。
+    // The port is tied to SHARED.serverPort in src/shared/settings.ts (both 8787); if you change the port there, change it here too.
     const res = await fetch("http://127.0.0.1:8787/health", { signal: AbortSignal.timeout(2000) });
     serverOk = res.ok;
   } catch {
@@ -41,7 +41,7 @@ function home() {
   return process.env.HOME || "";
 }
 
-// 沒有 claude CLI（用戶走 Anthropic API）→ 無憑證可保鮮，靜默結束
+// No claude CLI (user is on the Anthropic API) → no credentials to keep fresh, exit silently
 const which = spawnSync("which", ["claude"], { encoding: "utf8" });
 if (which.status !== 0) {
   console.log(`[heartbeat] ${stamp} — 未安裝 claude CLI，略過`);
@@ -79,7 +79,7 @@ if (!failed) {
 console.error(
   `[heartbeat] ${stamp} — Claude CLI 憑證異常：${(result.stderr || result.stdout || "").slice(0, 160)}`,
 );
-// 只有「曾經成功過」才告警——從未成功代表用戶根本不用 CLI provider，不該吵他
+// Only alert if it once succeeded — never having succeeded means the user doesn't use the CLI provider at all, so don't bother them
 if (fs.existsSync(okMarker)) {
   try {
     spawnSync("osascript", [

@@ -1,11 +1,12 @@
 /**
- * HTML 輸出跳脫——共用於 email 與 preview／archive 渲染。
- * 內容多來自用戶瀏覽過的任意網頁（標題、摘要、URL），視為攻擊者可影響的字串。
- * 純字串運算、無 Node 相依。
+ * HTML output escaping — shared by the email and preview/archive renderers.
+ * Content mostly comes from arbitrary web pages the user has browsed (titles, summaries, URLs),
+ * treated as attacker-influenceable strings.
+ * Pure string operations, no Node dependency.
  */
 
-// 同時處理文字與屬性語境：& < > 之外，還跳脫 " 與 '，
-// 讓 href="${esc(...)}" 這類屬性插值也不會被引號突破。
+// Handles both text and attribute contexts: beyond & < >, it also escapes " and ',
+// so attribute interpolations like href="${esc(...)}" can't be broken out of via quotes.
 export function esc(s: string): string {
   return s
     .replaceAll("&", "&amp;")
@@ -15,14 +16,14 @@ export function esc(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
-// href 只允許 http/https；其餘（javascript:、data: 等）一律歸零成 "#"。
-// 回傳值已經跳脫，可直接放進 href="${safeHref(url)}"。
+// href allows only http/https; everything else (javascript:, data:, etc.) collapses to "#".
+// The return value is already escaped, so it can go straight into href="${safeHref(url)}".
 export function safeHref(url: string): string {
   try {
     const u = new URL(url);
     if (u.protocol === "http:" || u.protocol === "https:") return esc(url);
   } catch {
-    // 無法解析的字串不當作連結
+    // A string that can't be parsed isn't treated as a link
   }
   return "#";
 }

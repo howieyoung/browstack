@@ -1,6 +1,6 @@
-// 每週出刊：ingest → enrich → cover → digest → send
-// 由 launchd 排程呼叫（npm run schedule:weekly 安裝，每週兩個時段：主跑＋當日重試），
-// 也可手動 npm run weekly。
+// Weekly publishing: ingest → enrich → cover → digest → send
+// Invoked by the launchd schedule (installed via npm run schedule:weekly, two slots per week: main run + same-day retry),
+// or run manually with npm run weekly.
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 
-// 失敗絕不無聲：macOS 通知中心告警
+// Never fail silently: alert via macOS Notification Center
 function notify(message) {
   try {
     spawnSync("osascript", [
@@ -17,11 +17,11 @@ function notify(message) {
       `display notification ${JSON.stringify(message)} with title "Browstack" sound name "Basso"`,
     ]);
   } catch {
-    /* 通知失敗不影響流程 */
+    /* a failed notification doesn't affect the flow */
   }
 }
 
-// 冪等保護：同一週已成功寄出 → 重試時段直接跳過，絕不重複寄送
+// Idempotency guard: if this week already sent successfully → the retry slot skips outright, never sending twice
 try {
   const Database = require("better-sqlite3");
   const db = new Database(path.join(repoRoot, "data", "browstack.db"), { readonly: true });
@@ -32,7 +32,7 @@ try {
     process.exit(0);
   }
 } catch {
-  /* DB 尚不存在（全新安裝）→ 照常執行 */
+  /* DB doesn't exist yet (fresh install) → run as usual */
 }
 
 function run(script, { tolerate = false } = {}) {
@@ -53,12 +53,12 @@ function run(script, { tolerate = false } = {}) {
 
 console.log(`[weekly] Browstack 出刊開始 / issue run started — ${new Date().toString()}`);
 run("ingest");
-// enrich 偶發失敗（LLM 逾時等）不殺整期：本週稍早已增潤的內容仍可出刊；
-// 若最終完全沒有內容，email/send 會拒絕寄出空刊物（見 email.ts 保險）
+// An occasional enrich failure (LLM timeout, etc.) doesn't kill the whole issue: content enriched earlier this week can still publish;
+// if there's ultimately no content at all, email/send refuses to send an empty issue (see the safeguard in email.ts)
 run("enrich", { tolerate: true });
-// 封面渲染失敗（如金鑰未設）不擋出刊，沿用上一張封面
+// A cover render failure (e.g. missing key) doesn't block publishing; reuse the previous cover
 run("cover", { tolerate: true });
-// 當週閱讀速寫（典藏櫥窗副標）：LLM 產出,失敗不擋出刊,該期就沒有速寫副標
+// The week's reading sketch (the collection-showcase subtitle): LLM-generated; a failure doesn't block publishing, the issue just has no sketch subtitle
 run("digest", { tolerate: true });
 run("send");
 console.log(`[weekly] 出刊完成 / done — ${new Date().toString()}`);
