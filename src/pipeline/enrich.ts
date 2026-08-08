@@ -78,13 +78,18 @@ export async function classifyCandidates(candidates: Candidate[]): Promise<Enric
   const list = candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, host: new URL(c.url).hostname }));
   const reply = await provider.complete({
     system:
-      "You are the commissioning editor of the Browstack personal weekly digest. Keep only knowledge-type " +
-      "content: technology, AI, industry analysis, business insight, substantive public-affairs pieces, " +
-      "professional knowledge, and social posts with a real point of view or informational value. " +
-      "Always exclude: entertainment gossip, lotteries, shopping promos, membership drives, site sections or " +
-      "list pages (not a single piece), pure chatter or venting, ad/marketing pages, and all 'quick lookup' " +
-      "behavior — encyclopedia entries, dictionary/word lookups, weather, prize checks — which is looking " +
-      "things up, not reading.",
+      "You are the commissioning editor of the Browstack personal weekly digest. Knowledge is a HARD gate: keep " +
+      "only a piece that teaches, explains, analyzes, or argues something with real substance worth remembering — " +
+      "technology, AI, industry analysis, business insight, substantive public-affairs pieces, professional " +
+      "knowledge, and social posts with a genuine point of view or informational value. " +
+      "Everything else is is_knowledge:false, no matter how long it was viewed. Always exclude: " +
+      "entertainment gossip; lotteries and prize checks; shopping promos, product/store pages and menus; " +
+      "membership drives and ads/marketing; movie showtimes, cinema/ticketing/booking/reservation and event " +
+      "signup pages; schedules, timetables and any transactional or logistics page (checkout, order status, " +
+      "seat selection); site sections or list/index pages (not a single piece); pure chatter or venting; and " +
+      "all 'quick lookup' behavior — encyclopedia entries, dictionary/word lookups, weather. If a page is about " +
+      "DOING or BUYING something (attending, booking, ordering, watching) rather than UNDERSTANDING something, " +
+      "it is not knowledge.",
     prompt:
       `Classify the candidates below. Return a JSON array; each item ` +
       `{"id": number, "is_knowledge": boolean, "topic": "a short topic label in ${lang} (2–4 words, or 2–6 characters for CJK)"} ` +
@@ -117,7 +122,7 @@ export async function fetchMissingContent(limit = 12): Promise<{ fetched: number
       const article = await fetchArticle(t.url);
       save.run(article.text, article.title, t.id);
       fetched++;
-      console.log(`  ✓ ${new URL(t.url).hostname}（${article.text.length} 字）`);
+      console.log(`  ✓ ${new URL(t.url).hostname} (${article.text.length} chars)`);
     } catch (e) {
       failed++;
       console.log(`  ✗ ${new URL(t.url).hostname}：${String(e).slice(0, 80)}`);
@@ -231,21 +236,21 @@ export async function summarizeKnowledgePages(): Promise<number> {
 // Fully automated enrich: called weekly by the scheduler
 export async function enrich(): Promise<void> {
   const candidates = getCandidates();
-  console.log(`候選 ${candidates.length} 項，交由 ${getProvider().name} 分類…`);
+  console.log(`${candidates.length} candidates, handing off to ${getProvider().name} for classification…`);
   if (candidates.length > 0) {
     let records: EnrichmentRecord[];
     try {
       records = await classifyCandidates(candidates);
     } catch (e) {
-      console.log(`分類失敗（${String(e).slice(0, 120)}），重試一次…`);
+      console.log(`Classification failed (${String(e).slice(0, 120)}), retrying once…`);
       records = await classifyCandidates(candidates);
     }
     const { updated, upgraded } = applyEnrichment(records);
-    console.log(`已分類 ${updated} 項（unknown 升級為文章 ${upgraded} 項）`);
+    console.log(`Classified ${updated} items (${upgraded} unknowns upgraded to articles)`);
   }
-  console.log("補抓知識型文章正文…");
+  console.log("Fetching body text for knowledge articles…");
   const { fetched, failed } = await fetchMissingContent();
-  console.log(`抓到 ${fetched} 篇、失敗 ${failed} 篇`);
+  console.log(`Fetched ${fetched}, failed ${failed}`);
   const summarized = await summarizeKnowledgePages();
-  console.log(`完成 ${summarized} 份摘要`);
+  console.log(`Completed ${summarized} summaries`);
 }

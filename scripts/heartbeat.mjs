@@ -25,11 +25,11 @@ if (fs.existsSync(servePlist)) {
     serverOk = false;
   }
   if (!serverOk) {
-    console.error(`[heartbeat] ${stamp} — 接收服務 127.0.0.1:8787 無回應`);
+    console.error(`[heartbeat] ${stamp} — receiver service 127.0.0.1:8787 not responding`);
     try {
       spawnSync("osascript", [
         "-e",
-        'display notification "接收服務未運行——擷取資料可能流失。請重跑 npm run schedule:weekly,或檢查 data/logs/serve.log" with title "Browstack" sound name "Basso"',
+        'display notification "Receiver service is not running — capture data may be lost. Rerun npm run schedule:weekly, or check data/logs/serve.log" with title "Browstack" sound name "Basso"',
       ]);
     } catch {
       /* ignore */
@@ -44,7 +44,7 @@ function home() {
 // No claude CLI (user is on the Anthropic API) → no credentials to keep fresh, exit silently
 const which = spawnSync("which", ["claude"], { encoding: "utf8" });
 if (which.status !== 0) {
-  console.log(`[heartbeat] ${stamp} — 未安裝 claude CLI，略過`);
+  console.log(`[heartbeat] ${stamp} — claude CLI not installed, skipping`);
   process.exit(0);
 }
 
@@ -62,7 +62,7 @@ for (const key of Object.keys(env)) {
 }
 
 const result = spawnSync("claude", ["-p"], {
-  input: "回覆 ok",
+  input: "reply ok",
   env,
   encoding: "utf8",
   timeout: 120_000,
@@ -77,14 +77,14 @@ if (!failed) {
 }
 
 console.error(
-  `[heartbeat] ${stamp} — Claude CLI 憑證異常：${(result.stderr || result.stdout || "").slice(0, 160)}`,
+  `[heartbeat] ${stamp} — Claude CLI credential error: ${(result.stderr || result.stdout || "").slice(0, 160)}`,
 );
 // Only alert if it once succeeded — never having succeeded means the user doesn't use the CLI provider at all, so don't bother them
 if (fs.existsSync(okMarker)) {
   try {
     spawnSync("osascript", [
       "-e",
-      'display notification "Claude CLI 憑證已失效——請在終端機執行 claude /login，否則週六無法自動出刊" with title "Browstack" sound name "Basso"',
+      'display notification "Claude CLI credentials have expired — run claude /login in your terminal, otherwise Saturday auto-publish will fail" with title "Browstack" sound name "Basso"',
     ]);
   } catch {
     /* ignore */

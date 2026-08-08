@@ -38,7 +38,7 @@ export class ClaudeCliProvider implements LLMProvider {
       const timeoutMs = this.cliOpts.timeoutMs ?? 600_000;
       const timer = setTimeout(() => {
         child.kill();
-        reject(new Error(`claude-cli 逾時（${Math.round(timeoutMs / 1000)} 秒）`));
+        reject(new Error(`claude-cli timed out (${Math.round(timeoutMs / 1000)}s)`));
       }, timeoutMs);
       child.stdout.on("data", (d: Buffer) => (out += d.toString()));
       child.stderr.on("data", (d: Buffer) => (err += d.toString()));
@@ -53,7 +53,7 @@ export class ClaudeCliProvider implements LLMProvider {
         } else {
           reject(
             new Error(
-              `claude-cli exit ${code}: ${(err || out).slice(0, 300)}（若顯示未登入，請先在終端機執行 claude /login）`,
+              `claude-cli exit ${code}: ${(err || out).slice(0, 300)} (if it shows not logged in, run claude /login in the terminal first)`,
             ),
           );
         }

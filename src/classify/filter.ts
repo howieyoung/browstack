@@ -34,6 +34,8 @@ const NOISE_HOST = [
   /^[a-p]{32}$/, // chrome-extension://<id>
   /^(claude\.(ai|com)|chatgpt\.com|perplexity\.ai)$/, // AI chat tools are a work interface, not reading content
   /(^|\.)(pchome\.com\.tw|momoshop\.com\.tw|shopee\.tw|ruten\.com\.tw)$/, // shopping
+  /(^|\.)vscinemas\.com/, // cinema showtimes / ticketing — entertainment logistics, not reading
+  /(^|\.)(kktix\.com|accupass\.com|opentix\.life|ibon\.com\.tw|famiticket\.com\.tw)$/, // event ticketing platforms
   /^(platform|analytics|status|billing)\./, // developer consoles, billing, monitoring
   /console\.aws\.amazon\.com$/,
   /(^|\.)(sentry\.io|discord\.com|canva\.com|figma\.com|notion\.so|slack\.com)$/, // work tools

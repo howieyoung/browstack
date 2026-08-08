@@ -39,10 +39,10 @@ if (probe.status !== 0) {
   const hint =
     (probe.stderr || "").split("\n").find((l) => /NODE_MODULE_VERSION|dlopen|better_sqlite3/i.test(l)) ||
     (probe.stderr || "").slice(0, 200);
-  console.error("⚠  better-sqlite3 無法在此 node 版本載入,若繼續安裝,常駐接收服務會無法啟動：");
+  console.error("⚠  better-sqlite3 cannot load under this node version; if you continue, the resident receiver service won't start:");
   console.error(`    node: ${nodeBin}`);
   console.error(`    ${hint.trim()}`);
-  console.error("    修法：npm rebuild better-sqlite3   （或改用與模組建置版本相符的 node 再重跑本指令）");
+  console.error("    Fix: npm rebuild better-sqlite3   (or switch to a node matching the module's build version and rerun this command)");
   process.exit(1);
 }
 
@@ -109,7 +109,7 @@ function installAgent(agentLabel, xml) {
   spawnSync("launchctl", ["bootout", `gui/${uid}/${agentLabel}`], { stdio: "ignore" }); // bootout the old version first; failure is fine
   const boot = spawnSync("launchctl", ["bootstrap", `gui/${uid}`, plistPath], { encoding: "utf8" });
   if (boot.status !== 0) {
-    console.error(`launchctl bootstrap ${agentLabel} 失敗：${boot.stderr || boot.stdout}`);
+    console.error(`launchctl bootstrap ${agentLabel} failed: ${boot.stderr || boot.stdout}`);
     process.exit(1);
   }
   return plistPath;
@@ -128,11 +128,11 @@ installAgent(
   ),
 );
 
-const dayNames = ["日", "一", "二", "三", "四", "五", "六"];
+const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const hh = (h) => String(h).padStart(2, "0");
-console.log(`已排程 / Scheduled: 每週${dayNames[day]} ${hh(hour)}:${hh(minute)} 自動出刊（${hh(retryHour)}:${hh(minute)} 當日重試，成功則自動跳過）`);
-console.log(`憑證心跳 / heartbeat: 每天 09:37 保鮮 Claude CLI 憑證，失效即通知（未安裝 CLI 則自動略過）`);
-console.log(`接收服務 / receiver: 常駐 127.0.0.1:8787（登入即啟、當掉自動重啟）`);
+console.log(`Scheduled: auto-publish every ${dayNames[day]} at ${hh(hour)}:${hh(minute)} (${hh(retryHour)}:${hh(minute)} same-day retry, auto-skipped on success)`);
+console.log(`heartbeat: keeps the Claude CLI credentials fresh every day at 09:37, notifies on expiry (auto-skipped if the CLI isn't installed)`);
+console.log(`receiver: resident on 127.0.0.1:8787 (starts at login, auto-restarts on crash)`);
 console.log(`plist: ${weeklyPlistPath}`);
-console.log(`日誌 / logs: ${logDir}/{weekly,heartbeat,serve}.log`);
-console.log(`解除全部 / uninstall: for a in weekly heartbeat serve; do launchctl bootout gui/$UID/com.browstack.$a; rm ~/Library/LaunchAgents/com.browstack.$a.plist; done`);
+console.log(`logs: ${logDir}/{weekly,heartbeat,serve}.log`);
+console.log(`uninstall: for a in weekly heartbeat serve; do launchctl bootout gui/$UID/com.browstack.$a; rm ~/Library/LaunchAgents/com.browstack.$a.plist; done`);

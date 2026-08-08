@@ -1,3 +1,4 @@
+import { type UIStrings, ui } from "../i18n.js";
 import { esc, safeHref } from "../shared/html.js";
 import type { IssueItem } from "./select.js";
 
@@ -28,16 +29,6 @@ function parseSummary<T>(s: string | null): T {
 }
 
 const cleanTitle = (s: string) => esc(s.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim());
-const deviceLabel = (d: string) => (d === "both" ? "桌機＋手機" : d === "mobile" ? "手機" : "桌機");
-// How long you read it back then — that's why it made this issue
-const signalLabel = (i: IssueItem) =>
-  i.active_min > 0
-    ? `⚡ 本週你實讀了 ${i.active_min} 分鐘`
-    : `本週你停留了 ${i.minutes}${i.capped ? "+" : ""} 分鐘`;
-const fmtDate = (sec: number) => {
-  const d = new Date(sec * 1000);
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-};
 const hostOf = (u: string) => {
   try {
     return new URL(u).hostname.replace(/^www\./, "");
@@ -45,14 +36,15 @@ const hostOf = (u: string) => {
     return "";
   }
 };
-const sourceOf = (u: string) =>
-  /threads\./.test(u) ? "Threads" : /facebook\./.test(u) ? "Facebook" : /linkedin\./.test(u) ? "LinkedIn" : "社群";
+// Brand names stay verbatim; the generic fallback is localized.
+const sourceOf = (url: string, t: UIStrings) =>
+  /threads\./.test(url) ? "Threads" : /facebook\./.test(url) ? "Facebook" : /linkedin\./.test(url) ? "LinkedIn" : t.socialSource;
 
-// 01 · This week's deep reads: grouped by topic, cards within each group, globally sequential numbering
-function renderArticles(articles: IssueItem[]): string {
+// 01 · Deep reads: grouped by topic, cards within each group, globally sequential numbering
+function renderArticles(articles: IssueItem[], t: UIStrings): string {
   const topicGroups = new Map<string, IssueItem[]>();
   for (const a of articles) {
-    const key = a.topic ?? "其他";
+    const key = a.topic ?? t.otherTopic;
     if (!topicGroups.has(key)) topicGroups.set(key, []);
     topicGroups.get(key)!.push(a);
   }
@@ -71,7 +63,7 @@ function renderArticles(articles: IssueItem[]): string {
           <a class="item-title" href="${safeHref(a.url)}">${cleanTitle(a.title)}</a>
           <ul class="sum">${bullets}</ul>
           ${s.takeaway ? `<div class="takeaway">◈ ${esc(s.takeaway)}</div>` : ""}
-          <div class="item-meta">${hostOf(a.url)} · ${signalLabel(a)} · ${deviceLabel(a.devices)}</div>
+          <div class="item-meta">${hostOf(a.url)} · ${t.signal(a.active_min, a.minutes, !!a.capped)} · ${t.device(a.devices)}</div>
         </div>
       </div>`;
         })
@@ -82,7 +74,7 @@ function renderArticles(articles: IssueItem[]): string {
 }
 
 // 02 · Social echoes
-function renderSocial(socialPosts: IssueItem[]): string {
+function renderSocial(socialPosts: IssueItem[], t: UIStrings): string {
   return socialPosts
     .map((p) => {
       const s = parseSummary<{ context?: string }>(p.summary);
@@ -90,7 +82,7 @@ function renderSocial(socialPosts: IssueItem[]): string {
       <div class="quote">
         ${s.context ? `<div class="quote-context">${esc(s.context)}</div>` : ""}
         <div class="quote-text">${esc(p.title.replace(/^\(\d+\)\s*/, "").trim())}</div>
-        <div class="quote-meta"><span class="badge">${sourceOf(p.url)}</span> ${signalLabel(p)} · <a href="${safeHref(p.url)}">查看原文</a></div>
+        <div class="quote-meta"><span class="badge">${sourceOf(p.url, t)}</span> ${t.signal(p.active_min, p.minutes, !!p.capped)} · <a href="${safeHref(p.url)}">${t.viewOriginal}</a></div>
       </div>`;
     })
     .join("\n");
@@ -166,13 +158,16 @@ export function renderIssueDocument(params: {
   stats: IssueStats;
   coverHtml: string;
   digest?: string | null;
+  localeCode: string;
 }): string {
-  const { issue, articles, socialPosts, stats, coverHtml, digest } = params;
+  const { issue, articles, socialPosts, stats, coverHtml, digest, localeCode } = params;
+  const t = ui(localeCode);
   const digestHtml = digest ? `<p class="issue-digest">${esc(digest)}</p>` : "";
-  const issueLabel = issue.title ? `№${issue.number} · ${issue.title}` : `№${issue.number}`;
+  const displayTitle = issue.number === 0 ? t.inauguralTitle : issue.title;
+  const issueLabel = displayTitle ? `№${issue.number} · ${displayTitle}` : `№${issue.number}`;
   const mobilePct = stats.totalVisits > 0 ? Math.round((100 * stats.mobileVisits) / stats.totalVisits) : 0;
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="${localeCode}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -183,45 +178,44 @@ export function renderIssueDocument(params: {
 <body>
 <div class="sheet">
   <div class="nameplate">
-    <div class="np-row"><span>${issueLabel}</span><span>${fmtDate(issue.week_start)} — ${fmtDate(issue.week_end)}</span></div>
+    <div class="np-row"><span>${issueLabel}</span><span>${t.date(issue.week_start)} — ${t.date(issue.week_end)}</span></div>
     <div class="np-title">Browstack</div>
     <div class="np-tagline">Your Personal Weekly Digest</div>
   </div>
   <div class="cover-art">${coverHtml}</div>
   <div class="cover-info">
     ${digestHtml}
-    <p class="issue-note">本期選輯自你過去七天的 ${stats.footprintVisits.toLocaleString()} 次瀏覽足跡——
-      ${articles.length} 篇深讀與 ${socialPosts.length} 則社群迴響，附編輯摘要。</p>
+    <p class="issue-note">${t.issueNote(stats.footprintVisits, articles.length, socialPosts.length)}</p>
     <div class="stat-strip">
-      <div class="stat"><b>${articles.length}</b><span>本週深讀</span></div>
-      <div class="stat"><b>${socialPosts.length}</b><span>社群迴響</span></div>
-      <div class="stat"><b>${stats.readingMinutes}</b><span>內容分鐘</span></div>
+      <div class="stat"><b>${articles.length}</b><span>${t.statDeepReads}</span></div>
+      <div class="stat"><b>${socialPosts.length}</b><span>${t.statSocial}</span></div>
+      <div class="stat"><b>${stats.readingMinutes}</b><span>${t.statMinutes}</span></div>
     </div>
   </div>
 
   <section>
-    <h2>01 · 本週深讀</h2>
-    ${renderArticles(articles)}
+    <h2>01 · ${t.deepReads}</h2>
+    ${renderArticles(articles, t)}
   </section>
 
   <section>
-    <h2>02 · 社群迴響</h2>
-    ${renderSocial(socialPosts)}
+    <h2>02 · ${t.socialEchoes}</h2>
+    ${renderSocial(socialPosts, t)}
   </section>
 
   <section>
-    <h2>03 · 一週圖譜</h2>
+    <h2>03 · ${t.weekInFigures}</h2>
     <div class="figures">
-      <div>瀏覽足跡 <b>${stats.footprintVisits.toLocaleString()}</b> 次</div>
-      <div>手機佔比 <b>${mobilePct}%</b></div>
-      <div>內容頁造訪 <b>${stats.readingPages}</b> 頁</div>
-      <div>內容停留 <b>${stats.readingMinutes}</b> 分鐘</div>
+      <div>${t.figFootprint(stats.footprintVisits)}</div>
+      <div>${t.figMobile(mobilePct)}</div>
+      <div>${t.figPages(stats.readingPages)}</div>
+      <div>${t.figMinutes(stats.readingMinutes)}</div>
     </div>
   </section>
 
   <div class="colophon">
-    BROWSTACK №${issue.number} · 由你的瀏覽紀錄自動編輯<br />
-    資料未離開這台機器 · PUBLISHED FOR AN AUDIENCE OF ONE
+    BROWSTACK №${issue.number} · ${t.colophonAuto}<br />
+    ${t.colophonAudience}
   </div>
 </div>
 </body>

@@ -1,5 +1,7 @@
 import { getDb } from "../db.js";
+import { ui } from "../i18n.js";
 import { type Issue, issueDigest, listIssues } from "../issue.js";
+import { resolveContentLocale } from "../locale.js";
 import { esc } from "../shared/html.js";
 import { renderIssueDocument, type IssueStats } from "./issueView.js";
 import type { IssueItem } from "./select.js";
@@ -14,10 +16,6 @@ import type { IssueItem } from "./select.js";
 
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
 const toChromeTime = (unixSec: number) => (unixSec + CHROME_EPOCH_OFFSET_SEC) * 1_000_000;
-const fmtDate = (sec: number) => {
-  const d = new Date(sec * 1000);
-  return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
-};
 
 // Recompute an issue's selected items of a given kind over the stored week window [start,end] (signals computed from in-window visits, consistent with the original publication).
 function reconstructItems(n: number, kind: "article" | "social", order: string): IssueItem[] {
@@ -94,36 +92,47 @@ export function renderIssuePage(n: number): string | null {
   const articles = reconstructItems(n, "article", "active_min DESC, minutes DESC");
   const socialPosts = reconstructItems(n, "social", "minutes DESC");
   const stats = statsForWindow(issue.week_start, issue.week_end);
+  const locale = resolveContentLocale();
   // Cover uses the same-origin route (findCover exactOnly: this issue's cover or the default, never borrow another issue's)
-  const coverHtml = `<img src="/covers/${n}" alt="第 ${n} 期封面插畫" />`;
-  return renderIssueDocument({ issue, articles, socialPosts, stats, coverHtml, digest: issueDigest(n) });
+  const coverHtml = `<img src="/covers/${n}" alt="${ui(locale.code).coverAlt(n)}" />`;
+  return renderIssueDocument({
+    issue,
+    articles,
+    socialPosts,
+    stats,
+    coverHtml,
+    digest: issueDigest(n),
+    localeCode: locale.code,
+  });
 }
 
 // Archive showcase index (generated live from listIssues; links go to /issues/N, covers to /covers/N).
 export function renderArchiveIndex(): string {
+  const locale = resolveContentLocale();
+  const t = ui(locale.code);
   const cards = listIssues()
     .map((i) => {
-      const label = i.title ? `№${i.number} · ${esc(i.title)}` : `№${i.number}`;
-      const status = i.sent_at ? `已寄出 ${fmtDate(i.sent_at)}` : "編輯中";
+      const dt = i.number === 0 ? t.inauguralTitle : i.title;
+      const label = dt ? `№${i.number} · ${esc(dt)}` : `№${i.number}`;
+      const status = i.sent_at ? t.statusSent(t.date(i.sent_at)) : t.statusEditing;
       const { articles, social } = issueCounts(i.number);
       const digest = issueDigest(i.number);
       // Reading sketch for the week: a one-line editorial take on "what you were reading and thinking" this issue
       const digestHtml = digest ? `<span class="digest">${esc(digest)}</span>` : "";
       // Stats subheading: how many deep reads, how many social echoes
-      const statsHtml =
-        articles + social > 0 ? `<span class="stats">${articles} 篇深讀 · ${social} 則社群迴響</span>` : "";
+      const statsHtml = articles + social > 0 ? `<span class="stats">${t.counts(articles, social)}</span>` : "";
       return `<a class="card" href="/issues/${i.number}">
-      <div class="thumb"><img src="/covers/${i.number}" alt="${esc(label)} 封面" loading="lazy" /></div>
-      <div class="meta"><b>${label}</b>${digestHtml}${statsHtml}<span class="date">${fmtDate(i.week_start)} — ${fmtDate(i.week_end)} · ${status}</span></div>
+      <div class="thumb"><img src="/covers/${i.number}" alt="${esc(t.coverAlt(i.number))}" loading="lazy" /></div>
+      <div class="meta"><b>${label}</b>${digestHtml}${statsHtml}<span class="date">${t.date(i.week_start)} — ${t.date(i.week_end)} · ${status}</span></div>
     </a>`;
     })
     .join("\n");
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="${locale.code}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Browstack 典藏</title>
+<title>Browstack ${locale.code.startsWith("zh") ? "典藏" : "Archive"}</title>
 <style>
   * { box-sizing: border-box; margin: 0; }
   body { background: #e6e1d5; font-family: "PingFang TC", "Noto Sans TC", sans-serif; color: #211c15; }
@@ -150,11 +159,11 @@ export function renderArchiveIndex(): string {
 </head>
 <body>
   <div class="wrap">
-    <header><h1>Browstack</h1><div class="tag">典藏 · Your Personal Weekly Digest</div></header>
+    <header><h1>Browstack</h1><div class="tag">${t.archiveTagline}</div></header>
     <div class="grid">
 ${cards}
     </div>
-    <footer>資料未離開這台機器 · PUBLISHED FOR AN AUDIENCE OF ONE</footer>
+    <footer>${t.archiveFooter}</footer>
   </div>
 </body>
 </html>`;

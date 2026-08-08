@@ -6,9 +6,9 @@ import { SHARED } from "../shared/settings.js";
 const url = `http://127.0.0.1:${SHARED.serverPort}/archive?k=${ensureArchiveToken()}`;
 try {
   execFileSync("open", [url], { stdio: "ignore" });
-  console.log("已在瀏覽器開啟你的典藏。");
+  console.log("Opened your archive in the browser.");
 } catch {
   // Don't print the URL with the token (avoid it landing in the terminal/history)
-  console.error("無法自動開啟瀏覽器。請確認接收服務運行中（npm run serve 或已排程),再重試 npm run archive:open。");
+  console.error("Could not open the browser automatically. Make sure the receiver service is running (npm run serve, or scheduled), then retry npm run archive:open.");
   process.exit(1);
 }

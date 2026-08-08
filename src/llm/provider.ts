@@ -27,7 +27,7 @@ export function getProvider(): LLMProvider {
     case "anthropic":
       return new AnthropicProvider(CONFIG.llm.model);
     case "ollama":
-      throw new Error("OllamaProvider 尚未實作（本機模型通道，依決策 #2 保留）");
+      throw new Error("OllamaProvider not yet implemented (local-model channel, reserved per decision #2)");
   }
 }
 
@@ -35,6 +35,6 @@ export function getProvider(): LLMProvider {
 export function parseJsonReply<T>(reply: string): T {
   const cleaned = reply.replace(/```(?:json)?/g, "").trim();
   const start = cleaned.search(/[[{]/);
-  if (start === -1) throw new Error(`回覆中找不到 JSON：${cleaned.slice(0, 120)}`);
+  if (start === -1) throw new Error(`No JSON found in the reply: ${cleaned.slice(0, 120)}`);
   return JSON.parse(cleaned.slice(start)) as T;
 }
