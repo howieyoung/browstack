@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import nodemailer from "nodemailer";
+import { ensureArchiveToken } from "../archiveToken.js";
 import { CONFIG } from "../config.js";
 import { findCover, getCurrentIssue, markIssueSent } from "../issue.js";
+import { SHARED } from "../shared/settings.js";
 
 /**
  * 寄出本期週刊：Gmail SMTP ＋應用程式密碼（存 macOS Keychain，service: browstack-smtp）。
@@ -47,6 +49,15 @@ if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
     `<img src="cid:issue-cover" alt="本期封面" style="width:100%;display:block;border-top:3px double #d9d2c2" />`,
   );
 }
+
+// 典藏按鈕：token 在寄送當下才注入連結,且只改記憶體中的 html、不寫回磁碟——token 永不落地於 out/。
+// 連結只在同一台 Mac、接收服務運行時有效（手機開信為死連結,屬架構限制）。
+const archiveUrl = `http://127.0.0.1:${SHARED.serverPort}/archive?k=${ensureArchiveToken()}`;
+const archiveButton = `<div style="text-align:center;padding:6px 40px 30px">
+      <a href="${archiveUrl}" style="display:inline-block;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.12em;color:#faf6ee;background:#b5361c;text-decoration:none;padding:12px 28px">在瀏覽器開啟你的典藏 →</a>
+      <div style="margin-top:10px;font-size:11px;color:#8d8474;letter-spacing:.04em">在這台 Mac 上、Browstack 服務運行時開啟</div>
+    </div>`;
+html = html.replace("<!--ARCHIVE_LINK-->", archiveButton);
 
 const transporter = nodemailer.createTransport({
   host: CONFIG.email.smtp.host,

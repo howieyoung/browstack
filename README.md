@@ -160,7 +160,15 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Issues & archive
 
-Every issue is numbered and kept: №0 is the preview issue; every issue after it is simply №N — progression is carried by the number itself. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover. Artifacts accumulate under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a browsable archive at `out/index.html`. If a week's cover fails to render, the previous issue's cover is reused.
+Every issue is numbered and kept: №0 is the preview issue; every issue after it is simply №N — progression is carried by the number itself. A successful `send` seals the current issue; the next run automatically opens a new one with a fresh cover.
+
+**Your reading, as a browsable showcase.** Every weekly email carries an **"Open your archive"** button. It links to a local page — served by the same always-on receiver on `127.0.0.1:8787` — that lays out every past issue like a magazine rack, rebuilt live from your database (so even issues you only ever received by email get a full web view). Because the archive is served from your own machine:
+
+- The button works **only on the same Mac, while the receiver is running** (installed by `npm run schedule:weekly`). It is a dead link on a phone or any other device — by design; your reading never leaves your machine.
+- The link carries a **capability token** — treat it like an account credential (see [SECURITY.md](SECURITY.md)). Rotate it any time with `npm run token:rotate` (old email buttons stop working; the next issue carries a fresh one).
+- Prefer not to dig through email? `npm run archive:open` opens the archive in your browser directly.
+
+Artifacts also accumulate on disk under `out/` (web + email versions per issue) and `assets/covers/` (one cover per issue), with a static index at `out/index.html`. If a week's cover fails to render, the email reuses the previous issue's cover; the archive shows each issue's own cover (or the bundled default), never another issue's art.
 
 ## Editorial principles
 

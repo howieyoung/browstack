@@ -12,6 +12,35 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const okMarker = path.join(repoRoot, "data", "logs", ".heartbeat-was-ok");
 const stamp = new Date().toString();
 
+// 接收服務健康檢查：裝了常駐 serve agent 卻連不上 127.0.0.1:8787 → 擷取資料正在流失,當天告警。
+// 沒裝 serve agent 的用戶不檢查（避免對只手動使用的人天天誤報）。
+const servePlist = path.join(home(), "Library", "LaunchAgents", "com.browstack.serve.plist");
+if (fs.existsSync(servePlist)) {
+  let serverOk = false;
+  try {
+    // 埠號與 src/shared/settings.ts 的 SHARED.serverPort 綁定（皆為 8787）;若那裡改埠,這裡要一起改。
+    const res = await fetch("http://127.0.0.1:8787/health", { signal: AbortSignal.timeout(2000) });
+    serverOk = res.ok;
+  } catch {
+    serverOk = false;
+  }
+  if (!serverOk) {
+    console.error(`[heartbeat] ${stamp} — 接收服務 127.0.0.1:8787 無回應`);
+    try {
+      spawnSync("osascript", [
+        "-e",
+        'display notification "接收服務未運行——擷取資料可能流失。請重跑 npm run schedule:weekly,或檢查 data/logs/serve.log" with title "Browstack" sound name "Basso"',
+      ]);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function home() {
+  return process.env.HOME || "";
+}
+
 // 沒有 claude CLI（用戶走 Anthropic API）→ 無憑證可保鮮，靜默結束
 const which = spawnSync("which", ["claude"], { encoding: "utf8" });
 if (which.status !== 0) {

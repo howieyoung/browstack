@@ -160,7 +160,15 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Numéros et archives
 
-Chaque numéro est numéroté et conservé : №0 est le numéro d'aperçu ; ensuite, chaque numéro est simplement №N — la progression est portée par le numéro lui-même. Un `send` réussi scelle le numéro courant ; l'exécution suivante en ouvre automatiquement un nouveau avec une couverture neuve. Les artefacts s'accumulent dans `out/` (versions web + e-mail par numéro) et `assets/covers/` (une couverture par numéro), avec des archives consultables dans `out/index.html`. Si la couverture d'une semaine échoue au rendu, celle du numéro précédent est réutilisée.
+Chaque numéro est numéroté et conservé : №0 est le numéro d'aperçu ; ensuite, chaque numéro est simplement №N — la progression est portée par le numéro lui-même. Un `send` réussi scelle le numéro courant ; l'exécution suivante en ouvre automatiquement un nouveau avec une couverture neuve.
+
+**Vos lectures, sous forme de vitrine consultable.** Chaque e-mail hebdomadaire comporte un bouton **« Ouvrir vos archives »**. Il pointe vers une page locale — servie par le même récepteur toujours actif sur `127.0.0.1:8787` — qui présente chaque numéro passé comme un présentoir à magazines, reconstruit en direct depuis votre base de données (ainsi même les numéros que vous n'avez reçus que par e-mail ont une version web complète). Comme les archives sont servies depuis votre propre machine :
+
+- Le bouton ne fonctionne **que sur le même Mac, tant que le récepteur tourne** (installé par `npm run schedule:weekly`). C'est un lien mort sur un téléphone ou tout autre appareil — c'est voulu ; vos lectures ne quittent jamais votre machine.
+- Le lien porte un **capability token** — traitez-le comme un identifiant de compte (voir [SECURITY.md](SECURITY.md)). Vous pouvez le renouveler à tout moment avec `npm run token:rotate` (les boutons des anciens e-mails cessent de fonctionner ; le numéro suivant en porte un nouveau).
+- Vous préférez ne pas fouiller vos e-mails ? `npm run archive:open` ouvre les archives directement dans votre navigateur.
+
+Les artefacts s'accumulent aussi sur le disque dans `out/` (versions web + e-mail par numéro) et `assets/covers/` (une couverture par numéro), avec un index statique dans `out/index.html`. Si la couverture d'une semaine échoue au rendu, l'e-mail réutilise celle du numéro précédent ; les archives affichent la couverture propre à chaque numéro (ou celle par défaut fournie), jamais celle d'un autre numéro.
 
 ## Principes éditoriaux
 

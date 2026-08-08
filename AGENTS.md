@@ -22,6 +22,13 @@ Everything runs locally; browsing data never leaves the machine.
    browsing history. Never send its contents anywhere.
 4. **Never send email without the user asking.** `npm run send` actually sends.
 5. macOS only (Keychain, launchd, sips). On other platforms, explain the limitation honestly.
+6. **The archive capability token is the one secret of the local archive server.** It MUST be
+   CSPRNG-only (`crypto.randomBytes`), stored in the Keychain (`browstack-archive`), and **fail
+   closed** when absent. Never add a hardcoded/default/derived fallback, and never mint it inside an
+   HTTP request handler — only in the send/rotate path. (Enforced by CI + `SECURITY.md`.)
+7. **Any committed sample/screenshot/cover must come from synthetic demo data, never a real DB.**
+   Rendered issues and covers are built from real browsing; a "demo" artifact generated from a live
+   DB would permanently publish someone's actual reading week. Regenerate from synthetic data if unsure.
 
 ## Onboarding flow (walk the user through, step by step)
 

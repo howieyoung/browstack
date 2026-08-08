@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { CONFIG } from "./config.js";
-import { getDb } from "./db.js";
+import { getDb, getMeta } from "./db.js";
 
 /**
  * 期數與典藏：每一期有自己的編號、刊名、週期區間與封面。
@@ -75,13 +75,20 @@ export function listIssues(): Issue[] {
   return db.prepare("SELECT * FROM issues ORDER BY number DESC").all() as Issue[];
 }
 
+// 當週閱讀速寫：生成封面 prompt 之前對本週閱讀內容的一句編輯理解（由 render/digest.ts 產生,存 meta）。
+// 供刊頭（issueView）、典藏櫥窗、信件引言共用。沒有就回 null。
+export function issueDigest(n: number): string | null {
+  const d = getMeta(`issue_digest:${n}`);
+  return d && d.trim().length > 0 ? d.trim() : null;
+}
+
 /**
  * 本期封面檔案：優先 issue-N.(png|jpg|svg) → 最近一期的封面（點陣圖優先）
  * → 隨庫附帶的預設封面（assets/cover-default.jpg，即創刊號封面）。
  * 全新 clone 尚未跑過 cover、或某週渲染失敗時，都能有一張完整封面，不擋出刊。
  * rasterOnly：email 的 CID 內嵌只吃點陣圖（png/jpg），svg 僅網頁版可用。
  */
-export function findCover(n: number, opts: { rasterOnly?: boolean } = {}): string | null {
+export function findCover(n: number, opts: { rasterOnly?: boolean; exactOnly?: boolean } = {}): string | null {
   const exts = opts.rasterOnly ? (["png", "jpg"] as const) : (["png", "jpg", "svg"] as const);
   const assetsRoot = path.join(CONFIG.dataDir, "..", "assets");
   const dir = path.join(assetsRoot, "covers");
@@ -93,6 +100,8 @@ export function findCover(n: number, opts: { rasterOnly?: boolean } = {}): strin
     const exact = path.join(dir, `issue-${n}.${ext}`);
     if (fs.existsSync(exact)) return exact;
   }
+  // exactOnly：典藏頁需忠實呈現——沒有本期封面就退回預設封面,絕不借用其他期的插畫張冠李戴
+  if (opts.exactOnly) return defaultCover;
   if (!fs.existsSync(dir)) return orDefault(null);
   const pattern = opts.rasterOnly ? /^issue-\d+\.(png|jpg)$/ : /^issue-\d+\.(png|jpg|svg)$/;
   const num = (f: string) => Number(f.match(/^issue-(\d+)\./)?.[1] ?? -1);

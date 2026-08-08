@@ -1,0 +1,13 @@
+# Security-critical paths require a code-owner review before merge.
+# These files carry the invariants documented in SECURITY.md; a subtle change here
+# (loosening the Host check, binding 0.0.0.0, weakening the CSP, a default token,
+# enabling jsdom scripts, or weakening .gitignore) can compromise every install.
+
+/src/server.ts            @howieyoung
+/src/shared/settings.ts   @howieyoung
+/src/fetch/extract.ts     @howieyoung
+/src/archiveToken.ts      @howieyoung
+/src/render/archive.ts    @howieyoung
+/.gitignore               @howieyoung
+/.github/                 @howieyoung
+/SECURITY.md              @howieyoung

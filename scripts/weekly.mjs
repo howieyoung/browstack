@@ -1,4 +1,4 @@
-// 每週出刊：ingest → enrich → cover → send
+// 每週出刊：ingest → enrich → cover → digest → send
 // 由 launchd 排程呼叫（npm run schedule:weekly 安裝，每週兩個時段：主跑＋當日重試），
 // 也可手動 npm run weekly。
 import { spawnSync } from "node:child_process";
@@ -58,5 +58,7 @@ run("ingest");
 run("enrich", { tolerate: true });
 // 封面渲染失敗（如金鑰未設）不擋出刊，沿用上一張封面
 run("cover", { tolerate: true });
+// 當週閱讀速寫（典藏櫥窗副標）：LLM 產出,失敗不擋出刊,該期就沒有速寫副標
+run("digest", { tolerate: true });
 run("send");
 console.log(`[weekly] 出刊完成 / done — ${new Date().toString()}`);
