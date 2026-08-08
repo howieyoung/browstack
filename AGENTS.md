@@ -9,8 +9,13 @@ follow this playbook. **Always reply in the user's language.**
 
 Browstack turns the user's own Chrome browsing history into a beautifully designed, privacy-first
 personal weekly digest (a "personal New Yorker"), delivered to their inbox. Pipeline:
-`ingest → enrich (LLM) → cover (art) → render → send (Gmail SMTP)`, schedulable weekly via launchd.
-Everything runs locally; browsing data never leaves the machine.
+`ingest → enrich (LLM) → cover (art) → digest (LLM) → render → send (Gmail SMTP)`, schedulable weekly
+via launchd. Everything runs locally; browsing data never leaves the machine.
+
+Each issue carries a one-line **reading digest** of the week's themes (issue epigraph, archive-card
+subtitle, and email subject). The weekly email links to a browsable **archive** served by the resident
+receiver on `127.0.0.1:8787` (`npm run archive:open`). Generated content follows the language the user
+reads (auto-detected; `contentLanguage` in `userConfig.ts` overrides); the fixed UI is localized en/zh-TW.
 
 ## Hard rules for agents
 
@@ -116,6 +121,14 @@ Logs at `data/logs/weekly.log`. Uninstall:
   passwords require 2-Step Verification enabled.
 - Empty issue → user needs ≥ a few days of Chrome browsing; check `npm run stats`.
 - Mobile browsing missing → Chrome Sync must be on (same Google account on phone).
+- **`better_sqlite3.node ... NODE_MODULE_VERSION` / `ERR_DLOPEN_FAILED`** → the native module is built
+  for the Node that installed it; the current Node differs. The resident server & weekly are pinned to
+  a specific Node — run DB-touching commands with that same Node (or `npm rebuild better-sqlite3` for the
+  current one). Do NOT re-run `schedule:weekly` from a different Node than the one already pinned, or the
+  resident server will fail to load better-sqlite3. To pick up new server code, restart the agent instead:
+  `launchctl kickstart -k gui/$UID/com.browstack.serve`.
+- Archive link dead / `archive:open` says the service isn't running → the receiver (`com.browstack.serve`)
+  is down; the daily heartbeat also probes `/health`. Start it (`npm run serve`) or kickstart the agent.
 
 ## Docs maintenance rule (for agents editing this repo)
 
