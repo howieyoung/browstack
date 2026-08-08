@@ -1,12 +1,12 @@
 import { execFileSync } from "node:child_process";
 
 /**
- * 圖像生成供應商抽象層——封面引擎的渲染端。
- * 與 LLMProvider 同一設計哲學：介面固定，引擎可換。
+ * Image-generation provider abstraction layer — the render side of the cover engine.
+ * Same design philosophy as LLMProvider: fixed interface, swappable engine.
  */
 
-// 金鑰來源優先序：環境變數 → macOS Keychain（service: browstack-openai）
-// Keychain 寫入方式：security add-generic-password -s browstack-openai -a "$USER" -w '<key>' -U
+// Key lookup order: environment variable → macOS Keychain (service: browstack-openai)
+// How to store in Keychain: security add-generic-password -s browstack-openai -a "$USER" -w '<key>' -U
 function getOpenAIKey(): string {
   if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
   try {
@@ -17,7 +17,7 @@ function getOpenAIKey(): string {
     ).trim();
     if (key) return key;
   } catch {
-    // Keychain 裡沒有，往下丟明確錯誤
+    // Not in the Keychain; fall through to throw an explicit error
   }
   throw new Error(
     "找不到 OpenAI 金鑰。建議存進 macOS Keychain：\n" +
@@ -28,7 +28,7 @@ function getOpenAIKey(): string {
 
 export interface ImageProvider {
   readonly name: string;
-  /** 產生一張直式封面圖，回傳 PNG buffer */
+  /** Generate a portrait cover image, returned as a PNG buffer */
   generate(prompt: string): Promise<Buffer>;
 }
 

@@ -7,9 +7,9 @@ import { renderIssueDocument, type IssueStats } from "./issueView.js";
 import { selectIssueItems } from "./select.js";
 
 /**
- * 週刊網頁版渲染器：產出 out/browstack-issue-N.html 與典藏索引 out/index.html
- * （供 file:// 直接開啟與 npm run preview;server 端另有即時渲染的 /archive）。
- * 單期版面與 archive 共用 issueView,確保外觀一致。
+ * Weekly web-version renderer: produces out/browstack-issue-N.html and the archive index out/index.html
+ * (for opening directly via file:// and for npm run preview; the server has its own live-rendered /archive).
+ * The single-issue layout shares issueView with archive to keep the look consistent.
  */
 
 const CHROME_EPOCH_OFFSET_SEC = 11_644_473_600;
@@ -43,7 +43,7 @@ const totalVisits = deviceSplit.reduce((a, d) => a + d.n, 0);
 
 const issue = getCurrentIssue();
 
-// 封面：本期 png/jpg（base64 data-URI）/svg（內嵌）→ 最近一期 → 預設（渲染失敗不擋出刊）
+// Cover: this issue's png/jpg (base64 data-URI) / svg (inline) → most recent issue → default (a render failure never blocks publishing)
 const coverPath = findCover(issue.number);
 let coverHtml = "";
 if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
@@ -68,7 +68,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const outPath = path.join(outDir, `browstack-issue-${issue.number}.html`);
 fs.writeFileSync(outPath, html);
 
-// 典藏索引：out/index.html 列出歷來各期（file:// 版;server 端另有即時 /archive）
+// Archive index: out/index.html lists all past issues (file:// version; the server has its own live /archive)
 const archiveRows = listIssues()
   .map((i) => {
     const cover = findCover(i.number);

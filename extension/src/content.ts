@@ -3,10 +3,10 @@ import { classifyUrl, type PageKind } from "../../src/classify/filter.js";
 import { SHARED } from "../../src/shared/settings.js";
 
 /**
- * 主動閱讀追蹤器。記憶體設計原則：
- * - 每個分頁只維持一組計數器；分頁不可見時計時器完全停止
- * - 內文擷取只在跨過門檻那一刻執行一次，送出即丟，不在頁面端保留
- * - 敏感頁與雜訊頁從一開始就不追蹤
+ * Active-reading tracker. Memory design principles:
+ * - Only one set of counters per tab; the timer fully stops when the tab is hidden.
+ * - Body extraction runs once at the moment the threshold is crossed, sent and discarded, never retained on the page.
+ * - Sensitive and noise pages are not tracked from the outset.
  */
 
 const cfg = SHARED.capture;
@@ -33,7 +33,7 @@ function send(msg: unknown): void {
   try {
     void chrome.runtime.sendMessage(msg);
   } catch {
-    // extension 重新載入後舊的 content script 會失去連線，靜默忽略
+    // After the extension reloads, the old content script loses its connection; ignore silently.
   }
 }
 
@@ -64,7 +64,7 @@ function stopTimer(): void {
   }
 }
 
-// 只在分頁可見時跑 1 秒一次的計時器
+// Run the 1-second-interval timer only while the tab is visible.
 function syncTimer(): void {
   if (!tracker) return;
   const visible = document.visibilityState === "visible";
@@ -103,9 +103,9 @@ function extract(kind: PageKind): { title: string | null; excerpt: string | null
       }
     }
   } catch {
-    // Readability 失敗時走 fallback
+    // Fall back when Readability fails.
   }
-  // 社群貼文 / 非典型頁面：og meta ＋主要區塊文字（有上限）
+  // Social posts / atypical pages: og meta plus main-block text (capped).
   const meta = (name: string) =>
     document.querySelector(`meta[property="${name}"], meta[name="${name}"]`)?.getAttribute("content") ?? null;
   const main = document.querySelector("article, main, [role='main']");
@@ -135,7 +135,7 @@ function capture(): void {
   });
 }
 
-// 離開/切走時回報最終閱讀量（僅已擷取的頁面）
+// On leaving/switching away, report the final read amount (only for already-captured pages).
 function sendFinal(): void {
   if (!tracker?.captured) return;
   send({
@@ -158,7 +158,7 @@ document.addEventListener("visibilitychange", () => {
 });
 addEventListener("pagehide", sendFinal);
 
-// SPA 導航（Threads/FB/新聞站都是 SPA）：URL 變了就結算上一頁、追蹤新頁
+// SPA navigation (Threads/FB/news sites are all SPAs): when the URL changes, finalize the previous page and track the new one.
 setInterval(() => {
   if (location.href !== currentUrl) {
     sendFinal();

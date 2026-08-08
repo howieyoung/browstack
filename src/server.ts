@@ -12,19 +12,19 @@ import { SHARED } from "./shared/settings.js";
 import { normalizeUrl } from "./shared/urls.js";
 
 /**
- * 本機接收服務：extension 的落地端,未來也端出典藏頁。
- * 只綁 127.0.0.1——瀏覽資料永遠不出這台機器。
- * 開源前提:攻擊者完全知道本檔內容,安全只押在每台各異的隨機 token,不押在保密機制。
+ * Local receiver service: the landing endpoint for the extension, and in future also serves the archive pages.
+ * Bound to 127.0.0.1 only — browsing data never leaves this machine.
+ * Open-source premise: attackers fully know this file's contents; security rests solely on the per-machine random token, not on any secrecy mechanism.
  */
 
-// 綁定位址永遠是本機迴環,絕不可改成對外可達位址或任何可設定值（會把歷史 server 曝露到區網）。
+// The bind address is always the local loopback; it must never be changed to an externally reachable address or any configurable value (that would expose the history server to the LAN).
 export const BIND_ADDRESS = "127.0.0.1";
 
-// 只接受本機 Host（精確比對）——擋 DNS rebinding:rebinding 攻擊頁送的 Host 是攻擊者網域,永不在此集合。
+// Only accept local Hosts (exact match) — blocks DNS rebinding: a rebinding attack page's Host is the attacker's domain, which is never in this set.
 const ALLOWED_HOSTS = new Set([`127.0.0.1:${SHARED.serverPort}`, `localhost:${SHARED.serverPort}`]);
 
-// HTML／圖片回應共用的嚴格安全標頭（單一 choke point;新路由一律經過它,不逐路由手寫）。
-// 刻意不設腳本來源指令——default-src 'none' 已封殺所有腳本;img-src 需含 data: 否則內嵌 base64 封面全空白。
+// Strict security headers shared by HTML/image responses (single choke point; every new route passes through it, never hand-written per route).
+// Deliberately no script-source directive — default-src 'none' already blocks all scripts; img-src needs data: or embedded base64 covers render blank.
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "content-security-policy":
     "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; " +
@@ -35,22 +35,22 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "cache-control": "no-store",
 };
 
-// Host 正規化後精確比對凍結集合。缺失/不符一律 false。
-// 只用 slice/charAt/Set.has,不用 includes/startsWith/endsWith/RegExp 做比對決策（那些容易被放寬成 rebinding 破口）。
+// Normalize the Host, then exact-match against the frozen set. Missing/mismatch is always false.
+// Uses only slice/charAt/Set.has, never includes/startsWith/endsWith/RegExp for the match decision (those are easily loosened into a rebinding hole).
 function hostAllowed(rawHost: string | undefined): boolean {
   if (!rawHost) return false;
   const host = rawHost.toLowerCase();
   const colon = host.lastIndexOf(":");
   const name = colon >= 0 ? host.slice(0, colon) : host;
   const port = colon >= 0 ? host.slice(colon) : "";
-  // 去掉主機名尾端單一個「.」（"localhost.:8787" / "127.0.0.1.:8787" 仍指向本機）
+  // Strip a single trailing "." from the hostname ("localhost.:8787" / "127.0.0.1.:8787" still point to the local machine)
   const cleanName = name.charAt(name.length - 1) === "." ? name.slice(0, -1) : name;
   return ALLOWED_HOSTS.has(cleanName + port);
 }
 
-// 典藏頁的 session cookie。值是 token 的 sha256（見 archiveToken.ts）,非 token 本身。
+// Session cookie for the archive pages. Its value is the sha256 of the token (see archiveToken.ts), not the token itself.
 const COOKIE_NAME = "bs";
-const COOKIE_MAX_AGE = 7 * 24 * 3600; // 7 天
+const COOKIE_MAX_AGE = 7 * 24 * 3600; // 7 days
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -58,7 +58,7 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml",
 };
 
-// 從 Cookie 標頭取出指定 cookie（用 indexOf/slice,不用 includes/startsWith——見 Host 檢查的同理）。
+// Extract the named cookie from the Cookie header (uses indexOf/slice, not includes/startsWith — same rationale as the Host check).
 function parseCookie(header: string | undefined, name: string): string | null {
   if (!header) return null;
   for (const part of header.split(";")) {
@@ -78,7 +78,7 @@ function sendHtml(res: http.ServerResponse, code: number, html: string): void {
   res.end(html);
 }
 
-// 只端已知副檔名的圖片,且套同一組安全標頭（SVG 也被 CSP 中和,縱使 cover.ts 已於生成時淨化）。
+// Serve only images with known extensions, applying the same security headers (SVG is also neutralized by the CSP, even though cover.ts already sanitizes at generation time).
 function sendCover(res: http.ServerResponse, filePath: string): void {
   if (res.headersSent) {
     res.destroy();
@@ -102,14 +102,14 @@ function sendCover(res: http.ServerResponse, filePath: string): void {
   res.end(buf);
 }
 
-// 驗 ?k 通過 → 發 cookie 並 302 到乾淨路徑（Location 用 server 端算出的 pathname,絕不回填請求字串）。
+// On a valid ?k → issue the cookie and 302 to a clean path (Location uses the server-computed pathname, never echoing back the request string).
 function sendRedirect(res: http.ServerResponse, location: string, cookieValue: string): void {
   if (res.headersSent) {
     res.destroy();
     return;
   }
-  // 一併帶上安全標頭（含 referrer-policy: no-referrer）——這個回應的 URL 帶著 ?k=token,
-  // 不能成為任何 Referer 來源。
+  // Include the security headers too (with referrer-policy: no-referrer) — this response's URL carries ?k=token
+  // and must not become a Referer source anywhere.
   res.writeHead(302, {
     ...SECURITY_HEADERS,
     location,
@@ -120,8 +120,8 @@ function sendRedirect(res: http.ServerResponse, location: string, cookieValue: s
 
 type AuthResult = "serve" | "deny" | { redirectTo: string; cookieValue: string };
 
-// 認證:合法 ?k → 發 cookie + 302（SameSite=Lax 確保 Gmail 跨站點擊後的頂層導航仍帶 cookie）;
-// 否則看 cookie;都沒有 → deny。stored 缺失一律 fail closed。
+// Authentication: valid ?k → issue cookie + 302 (SameSite=Lax ensures the top-level navigation after a cross-site click from Gmail still carries the cookie);
+// otherwise check the cookie; if neither → deny. A missing stored token always fails closed.
 function authorize(req: http.IncomingMessage, url: URL, stored: string | null): AuthResult {
   const k = url.searchParams.get("k");
   if (k && checkArchiveKey(k, stored)) {
@@ -189,7 +189,7 @@ function handleBatch(items: CaptureItem[]): { accepted: number; skipped: number 
         skipped++;
         continue;
       }
-      // 正規化 + 伺服器端重新分類：縱深防禦，敏感頁即使被送來也不落地
+      // Normalize + re-classify server-side: defense in depth, so sensitive pages are not persisted even if sent
       item.url = normalizeUrl(item.url);
       const { kind, sensitive } = classifyUrl(item.url);
       if (sensitive || kind === "noise") {
@@ -235,12 +235,12 @@ function readBody(req: http.IncomingMessage, limit: number): Promise<string> {
   });
 }
 
-// getToken 可注入（測試用固定 token,免動 Keychain）;預設從 Keychain 讀。
+// getToken is injectable (a fixed token for tests, avoiding the Keychain); defaults to reading from the Keychain.
 export function createBrowstackServer(opts: { getToken?: () => string | null } = {}): http.Server {
-  // 預設用短 TTL 快取版:避免每個請求（含索引頁每張封面）都 fork `security` 阻塞事件迴圈。
+  // Default to the short-TTL cached version: avoids forking `security` on every request (including each cover on the index page) and blocking the event loop.
   const getToken = opts.getToken ?? getArchiveTokenCached;
   return http.createServer(async (req, res) => {
-    // headersSent 防護:串流／已回應的請求不得再寫一次（避免 crash-loop）。
+    // headersSent guard: a streaming/already-responded request must not be written again (avoids a crash-loop).
     const sendJson = (code: number, body: unknown) => {
       if (res.headersSent) {
         res.destroy();
@@ -250,20 +250,20 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
       res.end(JSON.stringify(body));
     };
     try {
-      // Host 閘:所有路由（含 /capture）都先過,再談路由。
+      // Host gate: every route (including /capture) passes this first, before any routing.
       if (!hostAllowed(req.headers.host)) return sendJson(403, { ok: false });
 
-      // req.url 是「路徑+query」,且可能是 absolute-form;統一以 URL 解析,只取 pathname 做路由。
+      // req.url is "path+query" and may be in absolute-form; parse uniformly as a URL and route on the pathname only.
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${SHARED.serverPort}`);
       const pathname = url.pathname;
       const method = req.method === "HEAD" ? "GET" : req.method;
 
       if (method === "GET" && pathname === "/health") {
-        // 去產品指紋:不回傳 service 名（否則任何網站可探測「此訪客在用 Browstack」）。
+        // Strip the product fingerprint: don't return the service name (otherwise any site could probe "this visitor uses Browstack").
         return sendJson(200, { ok: true });
       }
 
-      // 典藏路由（唯讀 GET,需 token 或 cookie）。整數路由 server 端組路徑,無 client 可控檔名。
+      // Archive routes (read-only GET, requiring a token or cookie). Integer routes build the path server-side, so no client-controlled filename.
       if (method === "GET") {
         const isIndex = pathname === "/" || pathname === "/archive";
         const issuesMatch = /^\/issues\/(0|[1-9]\d{0,5})$/.exec(pathname);
@@ -283,8 +283,8 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
       }
 
       if (req.method === "POST" && pathname === "/capture") {
-        // 要求 application/json:逼跨站寫入走 CORS preflight（本 server 不回 CORS 標頭 → 被擋),
-        // 封掉任何網頁用 no-cors text/plain 灌假資料進本機 DB 的路。extension 本就送 application/json。
+        // Require application/json: forces cross-site writes through a CORS preflight (this server returns no CORS headers → blocked),
+        // closing off any web page using no-cors text/plain to inject fake data into the local DB. The extension already sends application/json.
         const ctype = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
         if (ctype !== "application/json") {
           return sendJson(415, { ok: false, error: "content-type must be application/json" });
@@ -298,7 +298,7 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
       }
       sendJson(404, { ok: false });
     } catch (e) {
-      // 只記 error code,絕不把請求輸入（可能含 token 等敏感值）回填進回應或日誌。
+      // Log only the error code, never echoing request input (which may contain sensitive values like tokens) into the response or logs.
       const code = (e as NodeJS.ErrnoException)?.code;
       if (code) console.error(`[server] 請求處理失敗：${code}`);
       sendJson(400, { ok: false });
@@ -306,12 +306,12 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
   });
 }
 
-// 作為主程式（tsx src/server.ts）執行時才實際 listen;被測試 import 時只拿 handler,不佔 port。
-// 兩邊都過 realpath:argv[1] 可能帶符號連結（如 macOS /tmp→/private/tmp）,而 import.meta.url 已是實路徑。
+// Only actually listen when run as the main program (tsx src/server.ts); when imported by tests, just expose the handler and don't hold a port.
+// Both sides go through realpath: argv[1] may carry symlinks (e.g. macOS /tmp→/private/tmp), whereas import.meta.url is already the real path.
 const isMain =
   !!argv[1] && fs.realpathSync(fileURLToPath(import.meta.url)) === fs.realpathSync(argv[1]);
 if (isMain) {
-  hardenPerms(); // 開機即收緊既有資料檔權限（不必等第一次 DB 存取）
+  hardenPerms(); // Tighten permissions on existing data files at startup (no need to wait for the first DB access)
   createBrowstackServer().listen(SHARED.serverPort, BIND_ADDRESS, () => {
     console.log(`browstack 本機接收服務：http://${BIND_ADDRESS}:${SHARED.serverPort}（只綁本機，資料不出機器）`);
   });

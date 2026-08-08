@@ -3,11 +3,13 @@ import { AnthropicProvider } from "./anthropic.js";
 import { ClaudeCliProvider } from "./claudeCli.js";
 
 /**
- * LLM 供應商抽象層。所有下游功能（知識分類、摘要、主題分組）
- * 只依賴這個介面，確保雲端/本機模型可隨時切換（產品決策 #2）。
+ * LLM provider abstraction layer. All downstream features (knowledge
+ * classification, summarization, topic grouping) depend only on this interface,
+ * ensuring cloud/local models can be swapped at any time (product decision #2).
  *
- * 隱私約束：呼叫端只能傳入「已通過內容頁分類」的正文。
- * 敏感/雜訊頁面在 ingest 階段就被擋下，永遠不會到達這裡。
+ * Privacy constraint: callers may only pass in body text that has already passed
+ * content-page classification. Sensitive/noise pages are blocked at the ingest
+ * stage and never reach here.
  */
 export interface LLMProvider {
   readonly name: string;
@@ -29,7 +31,7 @@ export function getProvider(): LLMProvider {
   }
 }
 
-// LLM 回覆常包 ```json 圍欄；取出第一個 JSON 值
+// LLM replies often wrap output in a ```json fence; extract the first JSON value
 export function parseJsonReply<T>(reply: string): T {
   const cleaned = reply.replace(/```(?:json)?/g, "").trim();
   const start = cleaned.search(/[[{]/);

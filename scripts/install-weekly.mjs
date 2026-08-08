@@ -1,6 +1,6 @@
-// 安裝 launchd 排程：每週自動出刊（macOS）
+// Install the launchd schedule: automatic weekly publishing (macOS)
 // Usage: npm run schedule:weekly [-- --day 6 --hour 8 --minute 17]
-//   --day 0-6（0=週日…6=週六，預設 6）
+//   --day 0-6 (0=Sunday…6=Saturday, default 6)
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -24,13 +24,13 @@ const label = "com.browstack.weekly";
 const logDir = path.join(repoRoot, "data", "logs");
 fs.mkdirSync(logDir, { recursive: true });
 
-// PATH 需含 node/npm 與 claude CLI（launchd 環境極簡）;含 Apple Silicon 的 /opt/homebrew
+// PATH must include node/npm and the claude CLI (launchd's environment is minimal); includes Apple Silicon's /opt/homebrew
 const PATH = `${nodeDir}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:${home}/.local/bin`;
 
-// 前置檢查：better-sqlite3 的原生模組必須能在「即將被釘用的這個 node」下載入。
-// 版本不符（例如從 Node 22 shell 執行,但模組是為 Node 20 建置）會讓常駐 server 靜默 crash-loop、
-// 落地資料流失。與其之後才發現,不如現在就擋下並給出明確修法。
-// 必須實際建構一個 DB——原生 .node 是在 new Database() 時才 dlopen,單純 require 不會觸發、會誤判為通過。
+// Preflight check: better-sqlite3's native module must load under the exact node we're about to pin.
+// A version mismatch (e.g. run from a Node 22 shell but the module was built for Node 20) makes the resident server
+// silently crash-loop and lose landed data. Better to block it now with a clear fix than discover it later.
+// Must actually construct a DB — the native .node is only dlopen'd at new Database(); a bare require won't trigger it and would falsely pass.
 const probe = spawnSync(nodeBin, ["-e", "new (require('better-sqlite3'))(':memory:').close()"], {
   cwd: repoRoot,
   encoding: "utf8",
@@ -46,7 +46,7 @@ if (probe.status !== 0) {
   process.exit(1);
 }
 
-// 出刊有兩個時段：主跑＋ 12 小時後的當日重試（weekly.mjs 有冪等保護，成功後重試自動跳過）
+// Publishing has two slots: the main run + a same-day retry 12 hours later (weekly.mjs is idempotent, so the retry auto-skips after success)
 const retryHour = (hour + 12) % 24;
 
 const agentPlist = (agentLabel, programArgs, scheduleXml, logFile) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -85,7 +85,7 @@ const weeklyCalendar = `<key>StartCalendarInterval</key>
     </dict>
   </array>`;
 
-// 心跳：每天一個極小的 claude 呼叫保鮮 CLI 憑證，失效時提前用通知中心告警
+// Heartbeat: a tiny daily claude call keeps the CLI credentials fresh, alerting via Notification Center before they expire
 const heartbeatLabel = "com.browstack.heartbeat";
 const heartbeatCalendar = `<key>StartCalendarInterval</key>
   <dict>
@@ -93,8 +93,8 @@ const heartbeatCalendar = `<key>StartCalendarInterval</key>
     <key>Minute</key><integer>37</integer>
   </dict>`;
 
-// 閱讀訊號接收服務：extension 的落地端，常駐（登入即啟、當掉自動重啟）
-// 只綁 127.0.0.1，記憶體佔用極小；不常駐的話 extension 的磁碟佇列（上限 300 筆）滿了會丟資料
+// Reading-signal receiver service: the extension's landing endpoint, resident (starts at login, auto-restarts on crash)
+// Binds 127.0.0.1 only, tiny memory footprint; without a resident service the extension's disk queue (max 300 entries) fills up and drops data
 const serveLabel = "com.browstack.serve";
 const serveSchedule = `<key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>`;
@@ -106,7 +106,7 @@ fs.mkdirSync(laDir, { recursive: true });
 function installAgent(agentLabel, xml) {
   const plistPath = path.join(laDir, `${agentLabel}.plist`);
   fs.writeFileSync(plistPath, xml);
-  spawnSync("launchctl", ["bootout", `gui/${uid}/${agentLabel}`], { stdio: "ignore" }); // 先卸舊版，失敗無妨
+  spawnSync("launchctl", ["bootout", `gui/${uid}/${agentLabel}`], { stdio: "ignore" }); // bootout the old version first; failure is fine
   const boot = spawnSync("launchctl", ["bootstrap", `gui/${uid}`, plistPath], { encoding: "utf8" });
   if (boot.status !== 0) {
     console.error(`launchctl bootstrap ${agentLabel} 失敗：${boot.stderr || boot.stdout}`);

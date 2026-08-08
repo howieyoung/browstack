@@ -1,9 +1,10 @@
 import { SHARED } from "../../src/shared/settings.js";
 
 /**
- * MV3 service worker：Chrome 閒置 ~30 秒即自動終結，天生不常駐記憶體。
- * 佇列放在磁碟上的 chrome.storage.local（有上限），送達本機服務後即刪除。
- * 唯一通訊對象：127.0.0.1。
+ * MV3 service worker: Chrome auto-terminates it after ~30s idle, so it never
+ * stays resident in memory by nature. The queue lives in on-disk
+ * chrome.storage.local (bounded), and is deleted once delivered to the local
+ * service. Only communication target: 127.0.0.1.
  */
 
 const ENDPOINT = `http://127.0.0.1:${SHARED.serverPort}`;
@@ -15,7 +16,7 @@ interface Stats {
   lastError: string | null;
 }
 
-// storage 讀改寫的簡易序列化，避免同 SW 實例內的競態
+// Simple serialization of storage read-modify-write to avoid races within the same SW instance.
 let chain: Promise<unknown> = Promise.resolve();
 function serialize<T>(fn: () => Promise<T>): Promise<T> {
   const p = chain.then(fn);
@@ -38,7 +39,7 @@ chrome.runtime.onMessage.addListener((msg: { event?: string }) => {
   void serialize(async () => {
     const queue = await getQueue();
     queue.push(msg);
-    while (queue.length > MAX_QUEUE) queue.shift(); // 有界佇列：超過即丟最舊
+    while (queue.length > MAX_QUEUE) queue.shift(); // Bounded queue: drop the oldest when exceeded.
     await chrome.storage.local.set({ queue });
   }).then(() => flush());
 });
@@ -61,7 +62,7 @@ function flush(): Promise<void> {
       stats.lastFlushAt = Date.now();
       stats.lastError = null;
     } catch (e) {
-      // 本機服務沒開：留在磁碟佇列，等 alarm 重試
+      // Local service not running: leave it in the on-disk queue and retry on the next alarm.
       stats.lastError = String(e);
     }
     await chrome.storage.local.set({ stats });

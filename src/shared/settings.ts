@@ -1,26 +1,27 @@
 import { USER_CONFIG } from "./userConfig.js";
 
 /**
- * 純資料設定，無 Node 相依——extension（瀏覽器端）與 CLI/server（Node 端）共用。
- * Node 專屬設定（路徑等）在 src/config.ts；個人設定在 userConfig.ts（gitignored）。
+ * Pure data config, no Node dependency — shared by the extension (browser side)
+ * and the CLI/server (Node side). Node-only config (paths, etc.) lives in
+ * src/config.ts; personal config in userConfig.ts (gitignored).
  */
 export const SHARED = {
-  // 個人專屬的雜訊網域，來自 userConfig（比對含所有子網域）
+  // Personal noise domains from userConfig (matched including all subdomains).
   userNoiseHosts: USER_CONFIG.noiseHosts,
 
-  // 掛著沒讀的分頁會把 visit_duration 灌水到小時級；計分時每次造訪最多算 20 分鐘
+  // A tab left open but unread inflates visit_duration to hours; cap each visit at 20 minutes when scoring.
   maxVisitDurationSec: 20 * 60,
 
-  // 本機接收服務：extension 唯一的通訊對象，永不出機器
+  // Local receiver service: the extension's only communication target, never leaves the machine.
   serverPort: 8787,
 
   capture: {
-    // 主動閱讀累積秒數達門檻 → 認定內容重要，觸發擷取
+    // Accumulated active-reading seconds hits the threshold → deem content important, trigger extraction.
     activeSecondsThreshold: 30,
-    // 最後一次互動（捲動/滑鼠/鍵盤）後多久內仍算「主動閱讀」
+    // How long after the last interaction (scroll/mouse/keyboard) still counts as "active reading".
     idleWindowMs: 15_000,
     maxTextLength: 100_000,
-    // 非文章頁 fallback 擷取的字數上限
+    // Character cap for fallback extraction on non-article pages.
     maxFallbackTextLength: 8_000,
   },
 };

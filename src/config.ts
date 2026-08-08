@@ -19,7 +19,7 @@ export const CONFIG = {
   serverPort: SHARED.serverPort,
 
   llm: {
-    // claude-cli 走用戶既有 Claude 訂閱（需先 claude /login）；anthropic 需 ANTHROPIC_API_KEY
+    // claude-cli uses the user's existing Claude subscription (requires claude /login first); anthropic needs ANTHROPIC_API_KEY
     provider: "claude-cli" as "claude-cli" | "anthropic" | "ollama",
     model: "claude-sonnet-5",
   },
@@ -27,7 +27,7 @@ export const CONFIG = {
   email: {
     from: USER_CONFIG.email.from,
     to: USER_CONFIG.email.to,
-    // Gmail SMTP；應用程式密碼存 Keychain（service: browstack-smtp）
+    // Gmail SMTP; the app password is stored in the Keychain (service: browstack-smtp)
     smtp: { host: "smtp.gmail.com", port: 465 },
   },
 };

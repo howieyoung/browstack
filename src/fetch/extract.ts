@@ -8,7 +8,7 @@ export interface ExtractedArticle {
   excerpt: string | null;
 }
 
-// 事後補抓 history 頁面的正文（extension 上線後，新內容改由瀏覽當下擷取）
+// Back-fill the body text for history pages (once the extension is live, new content is captured at browse time instead).
 export async function fetchArticle(url: string): Promise<ExtractedArticle> {
   const res = await fetch(url, {
     headers: {
@@ -24,7 +24,7 @@ export async function fetchArticle(url: string): Promise<ExtractedArticle> {
   if (!contentType.includes("html")) throw new Error(`非 HTML：${contentType}`);
   const html = await res.text();
 
-  // 靜音 jsdom 的 CSS/資源解析噪音
+  // Silence jsdom's CSS/resource parsing noise.
   const virtualConsole = new VirtualConsole();
   const dom = new JSDOM(html, { url, virtualConsole });
   const parsed = new Readability(dom.window.document).parse();

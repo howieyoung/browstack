@@ -9,19 +9,19 @@ import { getProvider, parseJsonReply } from "../llm/provider.js";
 import { resolveContentLanguage } from "../locale.js";
 
 /**
- * 封面生成引擎：每期依內容主題，以 The New Yorker 的封面藝術語言生成插畫。
- * 兩段式：LLM 藝術總監（概念與完整 image prompt）→ 圖像生成引擎（渲染 PNG）。
+ * Cover generation engine: each issue produces an illustration in The New Yorker's cover art language, driven by the issue's content themes.
+ * Two stages: LLM art director (concept and full image prompt) -> image generation engine (renders PNG).
  */
 
 /**
- * The New Yorker 封面風格規格（藝術總監的固定約束，逐期不變——這就是刊物的視覺識別）：
- * 1. 一個畫面、一個隱喻：封面是對時代的一則溫和評論，不是內容的圖解拼貼
- * 2. 扁平色塊與絹印質感：gouache/silkscreen 手感、無漸層無寫實光影、細微紙紋
- * 3. 有限色盤：5–7 色，靜謐偏暖的印刷色（深青、磚紅、芥黃、奶油、墨色系）
- * 4. 慷慨的負空間：不對稱構圖、大量留白、畫面上緣 18% 保持簡潔供刊頭壓字
- * 5. 都市的親密時刻：人物小而精準，孤獨但不悲傷，帶一點機智
- * 6. 畫面內絕不出現文字
- * 譜系參照：Adrian Tomine 的都市觀察 × Malika Favre 的大膽負空間 × Christoph Niemann 的概念機智
+ * The New Yorker cover style spec (the art director's fixed constraints, unchanged issue to issue — this is the publication's visual identity):
+ * 1. One image, one metaphor: the cover is a gentle commentary on the moment, not a diagrammatic collage of content
+ * 2. Flat color fields and silkscreen texture: gouache/silkscreen feel, no gradients or realistic lighting, subtle paper grain
+ * 3. Limited palette: 5–7 colors, quiet warm print tones (deep teal, brick red, mustard, cream, ink)
+ * 4. Generous negative space: asymmetric composition, plenty of white space, top 18% of the frame kept clean for the masthead
+ * 5. An intimate urban moment: figures small and precise, solitary but not sad, with a touch of wit
+ * 6. Never any text within the image
+ * Lineage reference: Adrian Tomine's urban observation × Malika Favre's bold negative space × Christoph Niemann's conceptual wit
  */
 const ART_DIRECTION_EN = `Style: The New Yorker magazine cover illustration tradition.
 Flat gouache / silkscreen texture, matte paper grain, absolutely no gradients, no 3D, no photorealism.
@@ -86,7 +86,7 @@ try {
   fs.writeFileSync(outPath, png);
   console.log(`封面完成：${outPath}`);
 } catch (e) {
-  // 沒有圖像引擎金鑰時的後備：用訂閱制 AI（最強模型＋高思考等級）直接畫 SVG 插畫
+  // Fallback when no image engine key is available: draw an SVG illustration directly with the subscription AI (strongest model + high effort level)
   console.log(`圖像引擎未執行（${String(e).slice(0, 120)}），改用訂閱 AI 繪製 SVG 封面…`);
   try {
     const svg = await generateSvgCover(concept);
@@ -101,7 +101,7 @@ try {
 }
 
 async function generateSvgCover(c: { concept: string; image_prompt_en: string }): Promise<string> {
-  // 偏好最強訂閱模型＋高思考；不可用時退回預設模型。畫圖較慢，給 10 分鐘。
+  // Prefer the strongest subscription model + high effort; fall back to the default model when unavailable. Drawing is slow, so allow 10 minutes.
   const artists =
     CONFIG.llm.provider === "claude-cli"
       ? [

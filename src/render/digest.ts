@@ -5,19 +5,20 @@ import { resolveContentLanguage } from "../locale.js";
 import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
- * 當週閱讀速寫：在生成封面 prompt「之前」,對讀者本週實際讀進去的內容做一句精闢的編輯理解——
- * 反映「這個人這週在追什麼、被什麼吸引」,而不是內容清單、也不是封面畫面的描述。
- * 存進 meta（key: issue_digest:N),供典藏櫥窗當副標。
+ * Weekly reading digest: BEFORE generating the cover prompt, produce one sharp editorial read of what
+ * the reader actually consumed this week — reflecting "what this person was chasing and drawn to this week",
+ * not a content list, and not a description of the cover image.
+ * Stored in meta (key: issue_digest:N) for use as the subtitle in the archive showcase.
  *
- * 用法：
- *   tsx src/render/digest.ts        # 當期（用 selectIssueItems 的即時選材）
- *   tsx src/render/digest.ts <N>    # 指定期（由 issue_items 重建,用於回填過刊）
+ * Usage:
+ *   tsx src/render/digest.ts        # current issue (live selection via selectIssueItems)
+ *   tsx src/render/digest.ts <N>    # specific issue (rebuilt from issue_items, for backfilling past issues)
  */
 
 interface Seed {
   topic: string | null;
   title: string;
-  note?: string; // 文章的 takeaway 或社群的 context——讓 LLM 讀到內容的實質,不只標題
+  note?: string; // an article's takeaway or a social post's context — lets the LLM see the substance, not just the title
   kind: string;
 }
 
@@ -89,7 +90,7 @@ const reply = await provider.complete({
   maxTokens: 300,
 });
 
-// 版面安全網:超過上限時在最近的斷句處收尾,不硬切在詞中間（正常情況 prompt 已把長度控在 ~40 字內）
+// Layout safety net: when over the limit, end at the nearest break instead of cutting mid-word (normally the prompt already keeps length within ~40 chars)
 function clip(s: string, max: number): string {
   if (s.length <= max) return s;
   const head = s.slice(0, max);
@@ -97,7 +98,7 @@ function clip(s: string, max: number): string {
   return (brk > max * 0.5 ? head.slice(0, brk) : head).trim();
 }
 
-// 清掉可能的圍欄、首尾引號、多餘空白
+// Strip any code fences, leading/trailing quotes, and extra whitespace
 const cleaned = reply
   .replace(/```/g, "")
   .trim()
@@ -111,4 +112,4 @@ if (!digest) {
   process.exit(1);
 }
 setMeta(`issue_digest:${issueNo}`, digest);
-console.log(`已寫入第 ${issueNo} 期閱讀速寫（${digest.length} 字）`); // 不印內容——屬個人閱讀衍生資料
+console.log(`已寫入第 ${issueNo} 期閱讀速寫（${digest.length} 字）`); // don't print the content — it's data derived from personal reading

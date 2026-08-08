@@ -42,7 +42,7 @@ function cmdStats(): void {
   console.log(`  共 ${captures.n} 筆（含正文 ${captures.with_text ?? 0} 筆）`);
 
   const weekAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
-  // 真實閱讀訊號（extension 的主動閱讀秒數）優先，history 停留時間次之
+  // Real reading signal (the extension's active-reading seconds) takes priority; history dwell time is secondary
   const top = db
     .prepare(
       `SELECT title, url, total_visits, ROUND(total_duration_sec / 60.0, 1) AS minutes,
@@ -68,7 +68,7 @@ function cmdStats(): void {
   }
 }
 
-// 分類規則更新後，重跑既有頁面：修正 kind、清除已入庫的敏感頁
+// After the classification rules change, re-run over existing pages: fix kind, purge stored sensitive pages
 function cmdReclassify(): void {
   const db = getDb();
   const pages = db.prepare("SELECT id, url, kind FROM pages").all() as Array<{
@@ -111,7 +111,7 @@ switch (cmd) {
   case "enrich":
     await enrich();
     break;
-  // 以下三個是 enrich 的分解步驟，供除錯與人工編輯流程使用
+  // The following three are enrich's decomposed steps, for debugging and manual editing workflows
   case "candidates":
     console.log(JSON.stringify(getCandidates(), null, 1));
     break;

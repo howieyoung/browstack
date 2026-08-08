@@ -8,9 +8,9 @@ import { findCover, getCurrentIssue, markIssueSent } from "../issue.js";
 import { SHARED } from "../shared/settings.js";
 
 /**
- * 寄出本期週刊：Gmail SMTP ＋應用程式密碼（存 macOS Keychain，service: browstack-smtp）。
- * 設定方式：Google 帳戶 → 安全性 → 兩步驟驗證 → 應用程式密碼，然後：
- *   security add-generic-password -s browstack-smtp -a <gmail帳號> -w '<16碼應用程式密碼>' -U
+ * Send this issue's weekly: Gmail SMTP + app password (stored in the macOS Keychain, service: browstack-smtp).
+ * Setup: Google Account → Security → 2-Step Verification → App passwords, then:
+ *   security add-generic-password -s browstack-smtp -a <gmail account> -w '<16-char app password>' -U
  */
 
 function getSmtpPassword(): string {
@@ -19,7 +19,7 @@ function getSmtpPassword(): string {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     })
-      .replace(/\s+/g, ""); // 應用程式密碼顯示時帶空格，串接時要去掉
+      .replace(/\s+/g, ""); // app passwords are shown with spaces; strip them when concatenating
     if (pw) return pw;
   } catch {
     // fall through
@@ -38,7 +38,7 @@ if (!fs.existsSync(emailPath)) {
 }
 let html = fs.readFileSync(emailPath, "utf8");
 
-// 封面以 inline CID 附件嵌入（email client 不吃 data URI，但吃 CID）；svg 無法內嵌，接受 png/jpg
+// Embed the cover as an inline CID attachment (email clients reject data URIs but accept CID); SVG can't be inlined, so accept png/jpg
 const coverPath = findCover(issue.number, { rasterOnly: true });
 const attachments: Array<{ filename: string; path: string; cid: string }> = [];
 if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
@@ -50,8 +50,8 @@ if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
   );
 }
 
-// 典藏按鈕：token 在寄送當下才注入連結,且只改記憶體中的 html、不寫回磁碟——token 永不落地於 out/。
-// 連結只在同一台 Mac、接收服務運行時有效（手機開信為死連結,屬架構限制）。
+// Archive button: the token is injected into the link only at send time, and only the in-memory html is modified, never written back to disk — the token never lands in out/.
+// The link works only on the same Mac while the receiver service is running (opening on a phone yields a dead link, an architectural limitation).
 const archiveUrl = `http://127.0.0.1:${SHARED.serverPort}/archive?k=${ensureArchiveToken()}`;
 const archiveButton = `<div style="text-align:center;padding:6px 40px 30px">
       <a href="${archiveUrl}" style="display:inline-block;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.12em;color:#faf6ee;background:#b5361c;text-decoration:none;padding:12px 28px">在瀏覽器開啟你的典藏 →</a>
@@ -73,5 +73,5 @@ const info = await transporter.sendMail({
   html,
   attachments,
 });
-markIssueSent(issue.number); // 封刊：下一次產出自動開新的一期
+markIssueSent(issue.number); // close the issue: the next run automatically starts a new one
 console.log(`已寄出 №${issue.number}：${info.messageId} → ${CONFIG.email.to}`);
