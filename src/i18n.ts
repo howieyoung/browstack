@@ -136,7 +136,171 @@ const zhTW: UIStrings = {
       : `Browstack №${n}${title ? " — " + title : ""}｜你的一週閱讀，成刊了`,
 };
 
-const TABLE: Record<string, UIStrings> = { en, "zh-tw": zhTW };
+const ja: UIStrings = {
+  deepReads: "今週のじっくり読み",
+  socialEchoes: "ソーシャルの残響",
+  weekInFigures: "数字で見る一週間",
+  statDeepReads: "じっくり読み",
+  statSocial: "ソーシャルの残響",
+  statMinutes: "コンテンツ時間（分）",
+  viewOriginal: "元記事を見る",
+  otherTopic: "その他",
+  socialSource: "ソーシャル",
+  device: (d) => (d === "both" ? "デスクトップ + モバイル" : d === "mobile" ? "モバイル" : "デスクトップ"),
+  signal: (activeMin, minutes, capped) =>
+    activeMin > 0
+      ? `⚡ 今週はこれを${activeMin}分じっくり読みました`
+      : `今週はこれに${minutes}${capped ? "+" : ""}分を費やしました`,
+  issueNote: (footprint, arts, socials) =>
+    footprint == null
+      ? `過去7日間の閲覧から厳選 — じっくり読み${arts}本とソーシャルの残響${socials}件、編集部の要約付き。`
+      : `過去7日間の${footprint.toLocaleString()}回のページ閲覧から厳選 — じっくり読み${arts}本とソーシャルの残響${socials}件、編集部の要約付き。`,
+  figFootprint: (n) => `ページ閲覧数 <b>${n.toLocaleString()}</b>`,
+  figMobile: (pct) => `モバイル比率 <b>${pct}%</b>`,
+  figPages: (n) => `コンテンツページ <b>${n}</b>`,
+  figMinutes: (n) => `コンテンツ時間（分） <b>${n}</b>`,
+  colophonAuto: "あなたの閲覧記録から自動編集",
+  colophonAudience: "あなたのデータはこの端末から一切外に出ていません · PUBLISHED FOR AN AUDIENCE OF ONE",
+  date: (sec) => new Intl.DateTimeFormat("ja-JP", { month: "short", day: "numeric" }).format(new Date(sec * 1000)),
+  archiveTagline: "アーカイブ · あなたのパーソナル週刊ダイジェスト",
+  counts: (arts, socials) => `じっくり読み${arts}本 · ソーシャルの残響${socials}件`,
+  statusSent: (dateStr) => `${dateStr}に配信`,
+  statusEditing: "編集中",
+  coverAlt: (n) => `第${n}号の表紙`,
+  archiveFooter: "あなたのデータはこの端末から一切外に出ていません · PUBLISHED FOR AN AUDIENCE OF ONE",
+  inauguralTitle: "創刊プレビュー",
+  emailArchiveButton: "ブラウザでアーカイブを開く →",
+  emailArchiveCaption: "Browstackの起動中に、このMacで開きます",
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n} — ${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""} — 今週の読書を、誌面で`,
+};
+
+const ko: UIStrings = {
+  deepReads: "이번 주 깊이 읽은 글",
+  socialEchoes: "소셜의 울림",
+  weekInFigures: "숫자로 보는 한 주",
+  statDeepReads: "깊이 읽은 글",
+  statSocial: "소셜의 울림",
+  statMinutes: "콘텐츠 시간(분)",
+  viewOriginal: "원문 보기",
+  otherTopic: "기타",
+  socialSource: "소셜",
+  device: (d) => (d === "both" ? "데스크톱 + 모바일" : d === "mobile" ? "모바일" : "데스크톱"),
+  signal: (activeMin, minutes, capped) =>
+    activeMin > 0
+      ? `⚡ 이번 주에 이 글을 ${activeMin}분 동안 집중해서 읽었습니다`
+      : `이번 주에 이 글에 ${minutes}${capped ? "+" : ""}분을 보냈습니다`,
+  issueNote: (footprint, arts, socials) =>
+    footprint == null
+      ? `지난 7일간의 브라우징에서 골라낸 글 — 깊이 읽은 글 ${arts}편과 소셜의 울림 ${socials}건, 편집자 요약과 함께.`
+      : `지난 7일간 방문한 ${footprint.toLocaleString()}개 페이지에서 골라낸 글 — 깊이 읽은 글 ${arts}편과 소셜의 울림 ${socials}건, 편집자 요약과 함께.`,
+  figFootprint: (n) => `방문한 페이지 <b>${n.toLocaleString()}</b>`,
+  figMobile: (pct) => `모바일 비중 <b>${pct}%</b>`,
+  figPages: (n) => `콘텐츠 페이지 <b>${n}</b>`,
+  figMinutes: (n) => `콘텐츠 시간(분) <b>${n}</b>`,
+  colophonAuto: "브라우징 기록에서 자동 편집됨",
+  colophonAudience: "당신의 데이터는 이 기기를 떠나지 않았습니다 · 단 한 명의 독자를 위해 발행됨",
+  date: (sec) => new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric" }).format(new Date(sec * 1000)),
+  archiveTagline: "아카이브 · 나만의 주간 다이제스트",
+  counts: (arts, socials) => `깊이 읽은 글 ${arts}편 · 소셜의 울림 ${socials}건`,
+  statusSent: (dateStr) => `${dateStr} 발송됨`,
+  statusEditing: "편집 중",
+  coverAlt: (n) => `제${n}호 표지`,
+  archiveFooter: "당신의 데이터는 이 기기를 떠나지 않았습니다 · 단 한 명의 독자를 위해 발행됨",
+  inauguralTitle: "창간 미리보기",
+  emailArchiveButton: "브라우저에서 아카이브 열기 →",
+  emailArchiveCaption: "Browstack이 실행 중일 때 이 Mac에서 열립니다",
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n} — ${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""} — 활자로 담은 이번 주 나의 읽기`,
+};
+
+const es: UIStrings = {
+  deepReads: "Lecturas de fondo de la semana",
+  socialEchoes: "Ecos sociales",
+  weekInFigures: "La semana en cifras",
+  statDeepReads: "lecturas de fondo",
+  statSocial: "ecos sociales",
+  statMinutes: "minutos de contenido",
+  viewOriginal: "Ver original",
+  otherTopic: "Otros",
+  socialSource: "Social",
+  device: (d) => (d === "both" ? "escritorio + móvil" : d === "mobile" ? "móvil" : "escritorio"),
+  signal: (activeMin, minutes, capped) =>
+    activeMin > 0
+      ? `⚡ Lo leíste con atención durante ${activeMin} min esta semana`
+      : `Le dedicaste ${minutes}${capped ? "+" : ""} min esta semana`,
+  issueNote: (footprint, arts, socials) =>
+    footprint == null
+      ? `Seleccionado de tu navegación de los últimos siete días: ${arts} lecturas de fondo y ${socials} ecos sociales, con resúmenes de la redacción.`
+      : `Seleccionado de tus ${footprint.toLocaleString()} páginas visitadas en los últimos siete días: ${arts} lecturas de fondo y ${socials} ecos sociales, con resúmenes de la redacción.`,
+  figFootprint: (n) => `Páginas visitadas <b>${n.toLocaleString()}</b>`,
+  figMobile: (pct) => `En el móvil <b>${pct}%</b>`,
+  figPages: (n) => `Páginas de contenido <b>${n}</b>`,
+  figMinutes: (n) => `Minutos de contenido <b>${n}</b>`,
+  colophonAuto: "editado automáticamente a partir de tu registro de navegación",
+  colophonAudience: "TUS DATOS NUNCA SALIERON DE ESTE EQUIPO · PUBLICADO PARA UN PÚBLICO DE UNO",
+  date: (sec) => new Intl.DateTimeFormat("es-ES", { month: "short", day: "numeric" }).format(new Date(sec * 1000)),
+  archiveTagline: "Archivo · Tu boletín semanal personal",
+  counts: (arts, socials) => `${arts} lecturas de fondo · ${socials} ecos sociales`,
+  statusSent: (dateStr) => `Enviado ${dateStr}`,
+  statusEditing: "En curso",
+  coverAlt: (n) => `Portada del número ${n}`,
+  archiveFooter: "TUS DATOS NUNCA SALIERON DE ESTE EQUIPO · PUBLICADO PARA UN PÚBLICO DE UNO",
+  inauguralTitle: "Avance inaugural",
+  emailArchiveButton: "Abre tu archivo en el navegador →",
+  emailArchiveCaption: "Se abre en este Mac mientras Browstack está en ejecución",
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n} — ${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""} — tu semana de lecturas, impresa`,
+};
+
+const fr: UIStrings = {
+  deepReads: "Les lectures de fond de la semaine",
+  socialEchoes: "Échos sociaux",
+  weekInFigures: "La semaine en chiffres",
+  statDeepReads: "lectures de fond",
+  statSocial: "échos sociaux",
+  statMinutes: "minutes de lecture",
+  viewOriginal: "Voir l'original",
+  otherTopic: "Autre",
+  socialSource: "Social",
+  device: (d) => (d === "both" ? "ordinateur + mobile" : d === "mobile" ? "mobile" : "ordinateur"),
+  signal: (activeMin, minutes, capped) =>
+    activeMin > 0
+      ? `⚡ Vous l'avez lu activement pendant ${activeMin} min cette semaine`
+      : `Vous y avez consacré ${minutes}${capped ? "+" : ""} min cette semaine`,
+  issueNote: (footprint, arts, socials) =>
+    footprint == null
+      ? `Sélection issue de votre navigation des sept derniers jours — ${arts} lectures de fond et ${socials} échos sociaux, avec les résumés de la rédaction.`
+      : `Sélection issue de vos ${footprint.toLocaleString()} pages consultées ces sept derniers jours — ${arts} lectures de fond et ${socials} échos sociaux, avec les résumés de la rédaction.`,
+  figFootprint: (n) => `Pages consultées <b>${n.toLocaleString()}</b>`,
+  figMobile: (pct) => `Sur mobile <b>${pct}%</b>`,
+  figPages: (n) => `Pages de contenu <b>${n}</b>`,
+  figMinutes: (n) => `Minutes de lecture <b>${n}</b>`,
+  colophonAuto: "édité automatiquement à partir de votre historique de navigation",
+  colophonAudience: "VOS DONNÉES N'ONT JAMAIS QUITTÉ CETTE MACHINE · UN JOURNAL POUR UN LECTEUR UNIQUE",
+  date: (sec) => new Intl.DateTimeFormat("fr-FR", { month: "short", day: "numeric" }).format(new Date(sec * 1000)),
+  archiveTagline: "Archives · Votre hebdomadaire personnel",
+  counts: (arts, socials) => `${arts} lectures de fond · ${socials} échos sociaux`,
+  statusSent: (dateStr) => `Envoyé le ${dateStr}`,
+  statusEditing: "En cours",
+  coverAlt: (n) => `Couverture du numéro ${n}`,
+  archiveFooter: "VOS DONNÉES N'ONT JAMAIS QUITTÉ CETTE MACHINE · UN JOURNAL POUR UN LECTEUR UNIQUE",
+  inauguralTitle: "Numéro inaugural",
+  emailArchiveButton: "Ouvrir vos archives dans le navigateur →",
+  emailArchiveCaption: "S'ouvre sur ce Mac tant que Browstack est actif",
+  emailSubject: (n, title, digest) =>
+    digest
+      ? `Browstack №${n} — ${digest}`
+      : `Browstack №${n}${title ? " — " + title : ""} — votre semaine de lecture, en version imprimée`,
+};
+
+const TABLE: Record<string, UIStrings> = { en, "zh-tw": zhTW, ja, ko, es, fr };
 
 // Resolve UI strings for a BCP-47 code. zh-* → Traditional Chinese; everything else → English.
 export function ui(localeCode: string): UIStrings {

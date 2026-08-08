@@ -27,6 +27,17 @@ fs.mkdirSync(logDir, { recursive: true });
 // PATH must include node/npm and the claude CLI (launchd's environment is minimal); includes Apple Silicon's /opt/homebrew
 const PATH = `${nodeDir}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:${home}/.local/bin`;
 
+// Compile to dist/ and align better-sqlite3's native ABI to THIS node, so the LaunchAgents run
+// compiled JS under a runtime-resolved node (no tsx boot cost, no baked node path) with a matching binary.
+const buildEnv = { ...process.env, PATH: `${nodeDir}:${process.env.PATH ?? ""}` };
+for (const step of [["run", "build"], ["rebuild", "better-sqlite3"]]) {
+  const r = spawnSync("npm", step, { cwd: repoRoot, stdio: "inherit", env: buildEnv });
+  if (r.status !== 0) {
+    console.error(`npm ${step.join(" ")} failed; aborting install.`);
+    process.exit(1);
+  }
+}
+
 // Preflight check: better-sqlite3's native module must load under the exact node we're about to pin.
 // A version mismatch (e.g. run from a Node 22 shell but the module was built for Node 20) makes the resident server
 // silently crash-loop and lose landed data. Better to block it now with a clear fix than discover it later.
@@ -43,6 +54,28 @@ if (probe.status !== 0) {
   console.error(`    node: ${nodeBin}`);
   console.error(`    ${hint.trim()}`);
   console.error("    Fix: npm rebuild better-sqlite3   (or switch to a node matching the module's build version and rerun this command)");
+  process.exit(1);
+}
+
+// Second preflight: the compiled pipeline must be able to load jsdom under the target node.
+// jsdom's dep tree does require() of an ES module; native node only allows that once require(ESM) is
+// unflagged (Node 20.19 / 22.0). On older 20.x or the interim 21.x, weekly.mjs opts in with a flag —
+// mirror that gating here so a broken node fails loudly at install, not silently every Saturday.
+const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
+const needsRequireModuleFlag = (nodeMajor === 20 && nodeMinor < 19) || nodeMajor === 21;
+const requireModuleFlag = needsRequireModuleFlag ? ["--experimental-require-module"] : [];
+const jsdomEntry = path.join(repoRoot, "dist", "fetch", "extract.js");
+const jsdomProbe = spawnSync(
+  nodeBin,
+  [...requireModuleFlag, "-e", `import(${JSON.stringify(jsdomEntry)}).then(() => process.exit(0)).catch((e) => { console.error(e.code || e.message); process.exit(1); })`],
+  { cwd: repoRoot, encoding: "utf8" },
+);
+if (jsdomProbe.status !== 0) {
+  const hint = (jsdomProbe.stderr || "").split("\n").filter(Boolean).slice(-1)[0] || "";
+  console.error("⚠  the compiled pipeline cannot load jsdom under this node; if you continue, the weekly run would fail:");
+  console.error(`    node: ${nodeBin} (${process.versions.node})`);
+  console.error(`    ${hint.trim()}`);
+  console.error("    Fix: use Node 20.19+ or 22+ (require(ESM) is stable there), then rerun this command.");
   process.exit(1);
 }
 
@@ -115,17 +148,15 @@ function installAgent(agentLabel, xml) {
   return plistPath;
 }
 
-const nodeScript = (file) => [nodeBin, path.join(repoRoot, "scripts", file)];
+// Agents run through a wrapper that resolves node at runtime (no baked node path), executing
+// compiled dist/ (the resident server) and the .mjs orchestrators.
+const wrapper = path.join(repoRoot, "scripts", "run-with-node.sh");
+const nodeScript = (file) => [wrapper, path.join(repoRoot, "scripts", file)];
 const weeklyPlistPath = installAgent(label, agentPlist(label, nodeScript("weekly.mjs"), weeklyCalendar, "weekly.log"));
 installAgent(heartbeatLabel, agentPlist(heartbeatLabel, nodeScript("heartbeat.mjs"), heartbeatCalendar, "heartbeat.log"));
 installAgent(
   serveLabel,
-  agentPlist(
-    serveLabel,
-    [nodeBin, path.join(repoRoot, "node_modules", ".bin", "tsx"), path.join(repoRoot, "src", "server.ts")],
-    serveSchedule,
-    "serve.log",
-  ),
+  agentPlist(serveLabel, [wrapper, path.join(repoRoot, "dist", "server.js")], serveSchedule, "serve.log"),
 );
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

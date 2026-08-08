@@ -108,6 +108,16 @@ npm run schedule:weekly -- --day 1 --hour 9    # or any day/time (--day 0-6, 0=S
 Logs at `data/logs/weekly.log`. Uninstall:
 `launchctl bootout gui/$UID/com.browstack.weekly && rm ~/Library/LaunchAgents/com.browstack.weekly.plist`
 
+**Run model (important for anyone editing `src/`):** the LaunchAgents run **compiled `dist/`** (no tsx
+at runtime), under a node resolved at runtime by `scripts/run-with-node.sh`. `schedule:weekly` compiles
+(`npm run build`) and aligns the native module (`npm rebuild better-sqlite3`) before installing, and its
+two preflights refuse to install if that node can't load better-sqlite3 or the jsdom-backed pipeline.
+So a `src/` edit has **no effect on the automation until you `npm run build`** (then kickstart the
+resident server, or re-run `schedule:weekly`). Interactive `npm run <ingest|enrich|serve|…>` still use
+tsx for convenience — the compiled path is only the installed automation. Requires Node ≥ 20.17 (Node
+20.19+ / 22+ recommended — `require(ESM)` is stable there; on 20.17–20.18 or 21.x the pipeline opts in
+via `--experimental-require-module`, handled automatically).
+
 ## Troubleshooting quick answers
 
 - `claude -p` says "Not logged in" → run `claude /login` in a normal Terminal.
@@ -125,7 +135,8 @@ Logs at `data/logs/weekly.log`. Uninstall:
   for the Node that installed it; the current Node differs. The resident server & weekly are pinned to
   a specific Node — run DB-touching commands with that same Node (or `npm rebuild better-sqlite3` for the
   current one). Do NOT re-run `schedule:weekly` from a different Node than the one already pinned, or the
-  resident server will fail to load better-sqlite3. To pick up new server code, restart the agent instead:
+  resident server will fail to load better-sqlite3. To pick up new server code, **`npm run build` first**
+  (the agent runs compiled `dist/`, so a kickstart alone re-runs the stale build), then
   `launchctl kickstart -k gui/$UID/com.browstack.serve`.
 - Archive link dead / `archive:open` says the service isn't running → the receiver (`com.browstack.serve`)
   is down; the daily heartbeat also probes `/health`. Start it (`npm run serve`) or kickstart the agent.
