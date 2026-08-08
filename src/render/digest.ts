@@ -1,6 +1,7 @@
 import { getDb, setMeta } from "../db.js";
 import { getCurrentIssue } from "../issue.js";
 import { getProvider } from "../llm/provider.js";
+import { resolveContentLanguage } from "../locale.js";
 import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
@@ -68,18 +69,23 @@ if (seeds.length === 0) {
   process.exit(0);
 }
 
+const lang = resolveContentLanguage();
 const provider = getProvider();
 const reply = await provider.complete({
   system:
-    "你是個人週刊《Browstack》的主編,為本期寫一句「當週閱讀速寫」。" +
-    "你會拿到讀者本週真正讀進去的內容（主題、標題、每篇重點）。" +
-    "請寫『一句』繁體中文,自然帶出這週閱讀的幾個具體題材／主體（點名真實的主題、領域、關鍵概念）," +
-    "讓讀者一眼就認出自己讀了什麼、重心落在哪。要具體、扣著真實內容;" +
-    "不要空泛的格言或硬擠的洞察,不要賣弄機智,也不要描述封面畫面。",
+    `You are the editor of a personal weekly digest called Browstack, writing this issue's ` +
+    `one-line "reading digest". You will be given what the reader actually read this week ` +
+    `(topics, titles, and the key point of each). Write ONE line in ${lang} that naturally ` +
+    `surfaces a few of the concrete subjects/themes this week's reading circled around — name ` +
+    `the real topics, fields and key concepts, so the reader instantly recognizes what they read ` +
+    `and where their focus landed. Be concrete and grounded in the actual content; no vague ` +
+    `aphorisms, no forced insight, no showing off wit, and do not describe any cover image.`,
   prompt:
-    `本週讀者實際讀進去的內容：\n${JSON.stringify(seeds, null, 1)}\n\n` +
-    `輸出一句繁體中文速寫,約 22–38 字,最多帶出 2–3 個最有份量的具體題材／關鍵字（最重要的放前面,不必全列）,` +
-    `讀起來像主編為這一期下的一句引言。只輸出這句話:不要引號、不要標籤前綴、不要條列。`,
+    `What the reader actually read this week:\n${JSON.stringify(seeds, null, 1)}\n\n` +
+    `Output ONE short sentence in ${lang}, surfacing the 2–3 weightiest concrete subjects/keywords ` +
+    `(most important first; you need not list them all), reading like an editor's one-line lead-in ` +
+    `for this issue. Keep it to a single tight line — about 18–32 characters for CJK, or about 10–16 words ` +
+    `otherwise; do not exceed one line. Output only that line: no quotes, no label prefix, no bullet list.`,
   maxTokens: 300,
 });
 
@@ -98,7 +104,7 @@ const cleaned = reply
   .replace(/^[「『"']+|[」』"']+$/g, "")
   .replace(/\s+/g, " ")
   .trim();
-const digest = clip(cleaned, 54);
+const digest = clip(cleaned, 120);
 
 if (!digest) {
   console.error("閱讀速寫生成為空,未寫入");

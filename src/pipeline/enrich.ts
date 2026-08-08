@@ -1,6 +1,7 @@
 import { getDb } from "../db.js";
 import { fetchArticle } from "../fetch/extract.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
+import { resolveContentLanguage } from "../locale.js";
 import { normalizeTitle } from "../shared/urls.js";
 
 /**
@@ -73,14 +74,21 @@ export function applyEnrichment(records: EnrichmentRecord[]): { updated: number;
 export async function classifyCandidates(candidates: Candidate[]): Promise<EnrichmentRecord[]> {
   if (candidates.length === 0) return [];
   const provider = getProvider();
+  const lang = resolveContentLanguage();
   const list = candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, host: new URL(c.url).hostname }));
   const reply = await provider.complete({
     system:
-      "你是 Browstack 個人週刊的選題編輯。只收錄知識型內容：科技、AI、產業分析、商業洞察、深度公共議題、專業知識、有觀點或資訊價值的社群貼文。" +
-      "一律排除：娛樂八卦、彩券、購物促銷、會員活動、網站專區或列表頁（非單篇內容）、純聊天或情緒抒發、廣告宣傳頁、" +
-      "以及所有「快查行為」——百科條目、字典查詢、單字問答、天氣、對獎，這些是查資料不是閱讀。",
+      "You are the commissioning editor of the Browstack personal weekly digest. Keep only knowledge-type " +
+      "content: technology, AI, industry analysis, business insight, substantive public-affairs pieces, " +
+      "professional knowledge, and social posts with a real point of view or informational value. " +
+      "Always exclude: entertainment gossip, lotteries, shopping promos, membership drives, site sections or " +
+      "list pages (not a single piece), pure chatter or venting, ad/marketing pages, and all 'quick lookup' " +
+      "behavior — encyclopedia entries, dictionary/word lookups, weather, prize checks — which is looking " +
+      "things up, not reading.",
     prompt:
-      `判斷以下候選內容，回傳 JSON array，每項格式 {"id": number, "is_knowledge": boolean, "topic": "2~6字中文主題標籤"}（非知識型的 topic 給 null）。只輸出 JSON。\n\n` +
+      `Classify the candidates below. Return a JSON array; each item ` +
+      `{"id": number, "is_knowledge": boolean, "topic": "a short topic label in ${lang} (2–4 words, or 2–6 characters for CJK)"} ` +
+      `(topic null when not knowledge-type). Output only JSON.\n\n` +
       JSON.stringify(list, null, 1),
     maxTokens: 4096,
   });
@@ -121,6 +129,7 @@ export async function fetchMissingContent(limit = 12): Promise<{ fetched: number
 export async function summarizeKnowledgePages(): Promise<number> {
   const db = getDb();
   const provider = getProvider();
+  const lang = resolveContentLanguage();
   const weekAgo = Math.floor(Date.now() / 1000) - DAYS * 86400;
 
   // 文章：內文（或退而求其次用標題）→ 三個重點 + 一句 takeaway
@@ -158,10 +167,13 @@ export async function summarizeKnowledgePages(): Promise<number> {
     }
     knownArticles.add(titleKey);
     const reply = await provider.complete({
-      system: "你是週刊編輯，把文章濃縮成足以取代原文閱讀的摘要。",
+      system: `You are a weekly-digest editor. Condense the article into a summary written in ${lang} that can replace reading the original.`,
       prompt:
-        `輸出 JSON：{"bullets": ["…", "…", "…"], "takeaway": "…"}。三個 bullet 各 ≤ 42 字，takeaway 是一句「為什麼值得記住」≤ 32 字。只輸出 JSON。\n\n` +
-        `標題：${a.title}\n內文節錄：${a.content_text.slice(0, 6000)}`,
+        `Output JSON: {"bullets": ["…", "…", "…"], "takeaway": "…"}, written in ${lang}. ` +
+        `Three bullets, each a single tight line (≈ ≤ 14 words, or ≤ 42 characters for CJK); ` +
+        `the takeaway is one line on "why this is worth remembering" (≈ ≤ 11 words, or ≤ 32 characters for CJK). ` +
+        `Output only JSON.\n\n` +
+        `Title: ${a.title}\nBody excerpt: ${a.content_text.slice(0, 6000)}`,
       maxTokens: 1024,
     });
     saveSummary.run(JSON.stringify(parseJsonReply(reply)), a.id);
@@ -200,9 +212,11 @@ export async function summarizeKnowledgePages(): Promise<number> {
   });
   if (posts.length > 0) {
     const reply = await provider.complete({
-      system: "你是週刊編輯。",
+      system: "You are a weekly-digest editor.",
       prompt:
-        `為每則社群貼文寫一句編輯脈絡（≤ 36 字，說明它在談什麼、為何值得記住）。回傳 JSON array：[{"id": number, "context": "…"}]。只輸出 JSON。\n\n` +
+        `For each social post, write one line of editorial context in ${lang} ` +
+        `(≈ ≤ 12 words, or ≤ 36 characters for CJK; what it is about and why it is worth remembering). ` +
+        `Return a JSON array: [{"id": number, "context": "…"}]. Output only JSON.\n\n` +
         JSON.stringify(posts.map((p) => ({ id: p.id, text: p.title.slice(0, 500) }))),
       maxTokens: 2048,
     });

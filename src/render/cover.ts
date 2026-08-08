@@ -6,6 +6,7 @@ import { getCurrentIssue } from "../issue.js";
 import { ClaudeCliProvider } from "../llm/claudeCli.js";
 import { getImageProvider } from "../llm/image.js";
 import { getProvider, parseJsonReply } from "../llm/provider.js";
+import { resolveContentLanguage } from "../locale.js";
 
 /**
  * 封面生成引擎：每期依內容主題，以 The New Yorker 的封面藝術語言生成插畫。
@@ -52,25 +53,29 @@ if (items.length === 0) {
 const provider = getProvider();
 console.log(`本期主題素材 ${items.length} 項，請 ${provider.name} 擔任藝術總監…`);
 
+const lang = resolveContentLanguage();
 const reply = await provider.complete({
   system:
-    "你是 The New Yorker 的封面藝術總監，為個人週刊 Browstack（把讀者自己的瀏覽閱讀編成刊物）設計本期封面。" +
-    "你的任務：從本期內容中找出『一個』值得評論的時代觀察，轉化成單一視覺隱喻。不要拼貼多個主題。",
+    "You are the cover art director for Browstack, a personal weekly digest that turns the reader's " +
+    "own browsing/reading into an issue. Your job: from this week's content, find ONE observation worth " +
+    "commenting on and turn it into a single visual metaphor. Do not collage multiple topics.",
   prompt:
-    `本期內容主題與標題：\n${JSON.stringify(items, null, 1)}\n\n` +
-    `固定風格規格（不可違反）：\n${ART_DIRECTION_EN}\n\n` +
-    `輸出 JSON：{"concept_zh": "80 字內的概念說明（給編輯看）", "image_prompt_en": "給圖像生成模型的完整英文 prompt，含場景、構圖、色盤 hex、氛圍，並完整內嵌上述風格規格的要求"}。只輸出 JSON。`,
+    `This issue's topics and titles:\n${JSON.stringify(items, null, 1)}\n\n` +
+    `Fixed style spec (must not be violated):\n${ART_DIRECTION_EN}\n\n` +
+    `Output JSON: {"concept": "a concept note for the editor, <= ~60 words, written in ${lang}", ` +
+    `"image_prompt_en": "the full ENGLISH prompt for the image model — scene, composition, palette hex, ` +
+    `mood — with the style spec above fully embedded"}. Output only JSON.`,
   maxTokens: 2048,
 });
 
-const concept = parseJsonReply<{ concept_zh: string; image_prompt_en: string }>(reply);
+const concept = parseJsonReply<{ concept: string; image_prompt_en: string }>(reply);
 const coversDir = path.join(CONFIG.dataDir, "..", "assets", "covers");
 fs.mkdirSync(coversDir, { recursive: true });
 fs.writeFileSync(
   path.join(coversDir, `issue-${issueNo}.concept.json`),
   JSON.stringify(concept, null, 2),
 );
-console.log(`\n本期封面概念：${concept.concept_zh}\n`);
+console.log(`\n本期封面概念：${concept.concept}\n`);
 
 try {
   if (process.env.BROWSTACK_DISABLE_IMAGE) throw new Error("圖像引擎已由 BROWSTACK_DISABLE_IMAGE 停用");
@@ -95,7 +100,7 @@ try {
   }
 }
 
-async function generateSvgCover(c: { concept_zh: string; image_prompt_en: string }): Promise<string> {
+async function generateSvgCover(c: { concept: string; image_prompt_en: string }): Promise<string> {
   // 偏好最強訂閱模型＋高思考；不可用時退回預設模型。畫圖較慢，給 10 分鐘。
   const artists =
     CONFIG.llm.provider === "claude-cli"
@@ -109,16 +114,17 @@ async function generateSvgCover(c: { concept_zh: string; image_prompt_en: string
     try {
       const reply = await artist.complete({
         system:
-          "你是頂尖的向量插畫家，以 The New Yorker 封面傳統作畫。你將直接用 SVG 作為畫布完成一幅完整、精緻、有構圖層次的插畫。",
+          "You are a top vector illustrator working in the New Yorker cover tradition. You will use SVG " +
+          "directly as your canvas to produce one complete, refined illustration with compositional depth.",
         prompt:
-          `依下列概念完成封面插畫：\n${c.concept_zh}\n\n場景參考（供理解，不必逐字照做）：${c.image_prompt_en.slice(0, 800)}\n\n` +
-          `硬性規格：\n` +
-          `- 只輸出一個完整的 <svg>…</svg>，不要任何其他文字或圍欄\n` +
-          `- viewBox="0 0 1000 1500" 直式構圖；畫面上緣 18% 保持簡潔供刊頭壓字\n` +
-          `- 只用這些顏色：#1f4e5f #16394a #b5361c #e8a13d #f2e8d5 #211c15 #6b8f71 #d9cfb4\n` +
-          `- 扁平色塊、無漸層、無濾鏡；構圖要有前中後景與大量負空間\n` +
-          `- 禁止：任何文字/字母/數字、<script>、<image>、<foreignObject>、外部連結、事件屬性\n` +
-          `- 以約 40–90 個幾何元素構成完整場景（人物、家具、光影色塊都用幾何形狀組成），元素夠用就好、不追求繁複`,
+          `Realize this cover concept:\n${c.concept}\n\nScene reference (for understanding, need not follow verbatim): ${c.image_prompt_en.slice(0, 800)}\n\n` +
+          `Hard spec:\n` +
+          `- Output exactly one complete <svg>…</svg>, no other text or code fences\n` +
+          `- viewBox="0 0 1000 1500" portrait; keep the top 18% calm so a masthead can be overlaid\n` +
+          `- Use only these colors: #1f4e5f #16394a #b5361c #e8a13d #f2e8d5 #211c15 #6b8f71 #d9cfb4\n` +
+          `- Flat color fields, no gradients, no filters; compose fore/mid/background with generous negative space\n` +
+          `- Forbidden: any text/letters/numbers, <script>, <image>, <foreignObject>, external links, event attributes\n` +
+          `- Build the scene from ~40–90 geometric elements (figures, furniture, light as shapes); enough is enough, do not over-elaborate`,
         maxTokens: 16384,
       });
       const start = reply.indexOf("<svg");
