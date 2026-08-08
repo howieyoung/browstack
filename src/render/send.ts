@@ -4,7 +4,9 @@ import path from "node:path";
 import nodemailer from "nodemailer";
 import { ensureArchiveToken } from "../archiveToken.js";
 import { CONFIG } from "../config.js";
+import { ui } from "../i18n.js";
 import { findCover, getCurrentIssue, markIssueSent } from "../issue.js";
+import { resolveContentLocale } from "../locale.js";
 import { SHARED } from "../shared/settings.js";
 
 /**
@@ -31,6 +33,7 @@ function getSmtpPassword(): string {
 }
 
 const issue = getCurrentIssue();
+const t = ui(resolveContentLocale().code);
 const emailPath = path.join(CONFIG.dataDir, "..", "out", `browstack-issue-${issue.number}.email.html`);
 if (!fs.existsSync(emailPath)) {
   console.error("找不到 email 版，先跑 npm run email");
@@ -46,7 +49,7 @@ if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
   attachments.push({ filename, path: coverPath, cid: "issue-cover" });
   html = html.replace(
     "<!--COVER-->",
-    `<img src="cid:issue-cover" alt="本期封面" style="width:100%;display:block;border-top:3px double #d9d2c2" />`,
+    `<img src="cid:issue-cover" alt="${t.coverAlt(issue.number)}" style="width:100%;display:block;border-top:3px double #d9d2c2" />`,
   );
 }
 
@@ -54,8 +57,8 @@ if (coverPath?.endsWith(".png") || coverPath?.endsWith(".jpg")) {
 // The link works only on the same Mac while the receiver service is running (opening on a phone yields a dead link, an architectural limitation).
 const archiveUrl = `http://127.0.0.1:${SHARED.serverPort}/archive?k=${ensureArchiveToken()}`;
 const archiveButton = `<div style="text-align:center;padding:6px 40px 30px">
-      <a href="${archiveUrl}" style="display:inline-block;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.12em;color:#faf6ee;background:#b5361c;text-decoration:none;padding:12px 28px">在瀏覽器開啟你的典藏 →</a>
-      <div style="margin-top:10px;font-size:11px;color:#8d8474;letter-spacing:.04em">在這台 Mac 上、Browstack 服務運行時開啟</div>
+      <a href="${archiveUrl}" style="display:inline-block;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:.12em;color:#faf6ee;background:#b5361c;text-decoration:none;padding:12px 28px">${t.emailArchiveButton}</a>
+      <div style="margin-top:10px;font-size:11px;color:#8d8474;letter-spacing:.04em">${t.emailArchiveCaption}</div>
     </div>`;
 html = html.replace("<!--ARCHIVE_LINK-->", archiveButton);
 
@@ -69,7 +72,7 @@ const transporter = nodemailer.createTransport({
 const info = await transporter.sendMail({
   from: `Browstack <${CONFIG.email.from}>`,
   to: CONFIG.email.to,
-  subject: `Browstack №${issue.number}${issue.title ? " — " + issue.title : ""}｜你的一週閱讀，成刊了`,
+  subject: t.emailSubject(issue.number, issue.title),
   html,
   attachments,
 });
