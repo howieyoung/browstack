@@ -46,12 +46,12 @@ const items = db
   .all(weekAgo) as Array<{ topic: string; title: string }>;
 
 if (items.length === 0) {
-  console.error("近 7 天沒有知識型內容可作為封面主題，先跑 npm run enrich");
+  console.error("No knowledge content in the last 7 days to use as a cover theme; run npm run enrich first");
   process.exit(1);
 }
 
 const provider = getProvider();
-console.log(`本期主題素材 ${items.length} 項，請 ${provider.name} 擔任藝術總監…`);
+console.log(`${items.length} theme materials for this issue, asking ${provider.name} to serve as art director…`);
 
 const lang = resolveContentLanguage();
 const reply = await provider.complete({
@@ -75,28 +75,28 @@ fs.writeFileSync(
   path.join(coversDir, `issue-${issueNo}.concept.json`),
   JSON.stringify(concept, null, 2),
 );
-console.log(`\n本期封面概念：${concept.concept}\n`);
+console.log(`\nThis issue's cover concept: ${concept.concept}\n`);
 
 try {
-  if (process.env.BROWSTACK_DISABLE_IMAGE) throw new Error("圖像引擎已由 BROWSTACK_DISABLE_IMAGE 停用");
+  if (process.env.BROWSTACK_DISABLE_IMAGE) throw new Error("Image engine disabled by BROWSTACK_DISABLE_IMAGE");
   const image = getImageProvider();
-  console.log(`交由 ${image.name} 渲染…`);
+  console.log(`Handing off to ${image.name} to render…`);
   const png = await image.generate(concept.image_prompt_en);
   const outPath = path.join(coversDir, `issue-${issueNo}.png`);
   fs.writeFileSync(outPath, png);
-  console.log(`封面完成：${outPath}`);
+  console.log(`Cover complete: ${outPath}`);
 } catch (e) {
   // Fallback when no image engine key is available: draw an SVG illustration directly with the subscription AI (strongest model + high effort level)
-  console.log(`圖像引擎未執行（${String(e).slice(0, 120)}），改用訂閱 AI 繪製 SVG 封面…`);
+  console.log(`Image engine did not run (${String(e).slice(0, 120)}); falling back to subscription AI to draw an SVG cover…`);
   try {
     const svg = await generateSvgCover(concept);
     const outPath = path.join(coversDir, `issue-${issueNo}.svg`);
     fs.writeFileSync(outPath, svg);
-    console.log(`SVG 封面完成：${outPath}`);
-    console.log("（提示：設定 OPENAI_API_KEY 可獲得更精緻的圖像引擎封面，見 README）");
+    console.log(`SVG cover complete: ${outPath}`);
+    console.log("(Tip: set OPENAI_API_KEY for a more refined image-engine cover, see README)");
   } catch (e2) {
-    console.log(`SVG 後備也未完成：${String(e2).slice(0, 160)}`);
-    console.log("本期將沿用最近一期／預設封面，不影響出刊。");
+    console.log(`SVG fallback also failed: ${String(e2).slice(0, 160)}`);
+    console.log("This issue will reuse the most recent / default cover; publishing is unaffected.");
   }
 }
 
@@ -129,10 +129,10 @@ async function generateSvgCover(c: { concept: string; image_prompt_en: string })
       });
       const start = reply.indexOf("<svg");
       const end = reply.lastIndexOf("</svg>");
-      if (start === -1 || end === -1) throw new Error("回覆中沒有完整的 SVG");
+      if (start === -1 || end === -1) throw new Error("No complete SVG in the reply");
       const svg = reply.slice(start, end + 6);
       if (/<script|<image|<foreignObject|xlink:href|\shref=|on[a-z]+=/i.test(svg)) {
-        throw new Error("SVG 含不允許的元素或屬性");
+        throw new Error("SVG contains disallowed elements or attributes");
       }
       return svg;
     } catch (err) {

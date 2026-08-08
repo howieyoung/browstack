@@ -7,7 +7,7 @@ export class AnthropicProvider implements LLMProvider {
 
   async complete(opts: { system?: string; prompt: string; maxTokens?: number }): Promise<string> {
     const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) throw new Error("需要 ANTHROPIC_API_KEY 環境變數（或改用 claude-cli provider）");
+    if (!key) throw new Error("ANTHROPIC_API_KEY environment variable required (or switch to the claude-cli provider)");
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {

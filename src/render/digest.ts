@@ -61,12 +61,12 @@ function issueSeeds(n: number): Seed[] {
 const arg = process.argv[2];
 const issueNo = arg !== undefined ? Number(arg) : getCurrentIssue().number;
 if (!Number.isInteger(issueNo) || issueNo < 0) {
-  console.error(`期數不合法：${arg}`);
+  console.error(`Invalid issue number: ${arg}`);
   process.exit(1);
 }
 const seeds = arg !== undefined ? issueSeeds(issueNo) : currentSeeds();
 if (seeds.length === 0) {
-  console.log(`第 ${issueNo} 期無入選內容,略過閱讀速寫`);
+  console.log(`Issue ${issueNo} has no selected content; skipping the reading digest`);
   process.exit(0);
 }
 
@@ -108,8 +108,8 @@ const cleaned = reply
 const digest = clip(cleaned, 120);
 
 if (!digest) {
-  console.error("閱讀速寫生成為空,未寫入");
+  console.error("Reading digest came back empty; nothing written");
   process.exit(1);
 }
 setMeta(`issue_digest:${issueNo}`, digest);
-console.log(`已寫入第 ${issueNo} 期閱讀速寫（${digest.length} 字）`); // don't print the content — it's data derived from personal reading
+console.log(`Wrote reading digest for issue ${issueNo} (${digest.length} chars)`); // don't print the content — it's data derived from personal reading

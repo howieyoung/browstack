@@ -27,8 +27,8 @@ function getSmtpPassword(): string {
     // fall through
   }
   throw new Error(
-    "找不到 SMTP 密碼。請先建立 Gmail 應用程式密碼並存入 Keychain：\n" +
-      `  security add-generic-password -s browstack-smtp -a ${CONFIG.email.from} -w '<應用程式密碼>' -U`,
+    "SMTP password not found. Create a Gmail app password and store it in the Keychain first:\n" +
+      `  security add-generic-password -s browstack-smtp -a ${CONFIG.email.from} -w '<app password>' -U`,
   );
 }
 
@@ -36,7 +36,7 @@ const issue = getCurrentIssue();
 const t = ui(resolveContentLocale().code);
 const emailPath = path.join(CONFIG.dataDir, "..", "out", `browstack-issue-${issue.number}.email.html`);
 if (!fs.existsSync(emailPath)) {
-  console.error("找不到 email 版，先跑 npm run email");
+  console.error("Email version not found; run npm run email first");
   process.exit(1);
 }
 let html = fs.readFileSync(emailPath, "utf8");
@@ -77,4 +77,4 @@ const info = await transporter.sendMail({
   attachments,
 });
 markIssueSent(issue.number); // close the issue: the next run automatically starts a new one
-console.log(`已寄出 №${issue.number}：${info.messageId} → ${CONFIG.email.to}`);
+console.log(`Sent №${issue.number}: ${info.messageId} → ${CONFIG.email.to}`);

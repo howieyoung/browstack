@@ -21,7 +21,7 @@ export async function fetchArticle(url: string): Promise<ExtractedArticle> {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.includes("html")) throw new Error(`非 HTML：${contentType}`);
+  if (!contentType.includes("html")) throw new Error(`Not HTML: ${contentType}`);
   const html = await res.text();
 
   // Silence jsdom's CSS/resource parsing noise.
@@ -29,7 +29,7 @@ export async function fetchArticle(url: string): Promise<ExtractedArticle> {
   const dom = new JSDOM(html, { url, virtualConsole });
   const parsed = new Readability(dom.window.document).parse();
   const text = parsed?.textContent?.trim();
-  if (!parsed || !text) throw new Error("Readability 抽不出正文");
+  if (!parsed || !text) throw new Error("Readability could not extract body text");
   return {
     title: parsed.title || null,
     text: text.slice(0, SHARED.capture.maxTextLength),

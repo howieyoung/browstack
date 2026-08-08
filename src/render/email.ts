@@ -27,7 +27,7 @@ const { articles, socialPosts } = selectIssueItems(weekAgo);
 
 // Safety: never send an empty issue (if enrich fully fails, skip this week rather than send a blank email)
 if (articles.length + socialPosts.length === 0) {
-  console.error("本期沒有任何已增潤的內容，拒絕產出空刊物。請先跑 npm run enrich。");
+  console.error("This issue has no enriched content; refusing to produce an empty issue. Run npm run enrich first.");
   process.exit(2);
 }
 
@@ -128,4 +128,4 @@ const outDir = path.join(CONFIG.dataDir, "..", "out");
 fs.mkdirSync(outDir, { recursive: true });
 const outPath = path.join(outDir, `browstack-issue-${issue.number}.email.html`);
 fs.writeFileSync(outPath, html);
-console.log(`已產出 email 版：${outPath}（${articles.length} 篇深讀、${socialPosts.length} 則迴響）`);
+console.log(`Generated email version: ${outPath} (${articles.length} deep reads, ${socialPosts.length} social echoes)`);

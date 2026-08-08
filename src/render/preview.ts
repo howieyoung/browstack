@@ -105,4 +105,4 @@ const indexHtml = `<!doctype html>
 <ul>${archiveRows}</ul></div></body></html>`;
 fs.writeFileSync(path.join(outDir, "index.html"), indexHtml);
 
-console.log(`已產出：${outPath}`);
+console.log(`Generated: ${outPath}`);

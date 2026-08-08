@@ -293,14 +293,14 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
         const parsed = JSON.parse(raw) as { items?: CaptureItem[] };
         if (!Array.isArray(parsed.items)) return sendJson(400, { ok: false, error: "items required" });
         const result = handleBatch(parsed.items);
-        console.log(`[capture] 收到 ${parsed.items.length} 筆：落地 ${result.accepted}、略過 ${result.skipped}`);
+        console.log(`[capture] received ${parsed.items.length} items: stored ${result.accepted}, skipped ${result.skipped}`);
         return sendJson(200, { ok: true, ...result });
       }
       sendJson(404, { ok: false });
     } catch (e) {
       // Log only the error code, never echoing request input (which may contain sensitive values like tokens) into the response or logs.
       const code = (e as NodeJS.ErrnoException)?.code;
-      if (code) console.error(`[server] 請求處理失敗：${code}`);
+      if (code) console.error(`[server] request handling failed: ${code}`);
       sendJson(400, { ok: false });
     }
   });
@@ -313,6 +313,6 @@ const isMain =
 if (isMain) {
   hardenPerms(); // Tighten permissions on existing data files at startup (no need to wait for the first DB access)
   createBrowstackServer().listen(SHARED.serverPort, BIND_ADDRESS, () => {
-    console.log(`browstack 本機接收服務：http://${BIND_ADDRESS}:${SHARED.serverPort}（只綁本機，資料不出機器）`);
+    console.log(`browstack local receiver service: http://${BIND_ADDRESS}:${SHARED.serverPort} (bound to localhost only, data never leaves this machine)`);
   });
 }

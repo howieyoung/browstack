@@ -12,18 +12,18 @@ import {
 
 function cmdIngest(): void {
   const s = ingestChromeHistory();
-  console.log(`已處理 ${s.visitsProcessed} 筆造訪（增量）`);
-  console.log(`頁面：新增 ${s.pagesNew}、更新 ${s.pagesUpdated}；敏感頁面略過不儲存 ${s.sensitiveSkipped} 筆`);
+  console.log(`Processed ${s.visitsProcessed} visits (incremental)`);
+  console.log(`Pages: ${s.pagesNew} added, ${s.pagesUpdated} updated; ${s.sensitiveSkipped} sensitive pages skipped (not stored)`);
   const kinds = Object.entries(s.kinds)
     .sort((a, b) => b[1] - a[1])
     .map(([k, v]) => `${k} ${v}`)
     .join("、");
-  if (kinds) console.log(`造訪分類：${kinds}`);
+  if (kinds) console.log(`Visit classification: ${kinds}`);
 }
 
 function cmdStats(): void {
   const db = getDb();
-  console.log("== 頁面分類統計 ==");
+  console.log("== Page classification stats ==");
   const byKind = db
     .prepare("SELECT kind, COUNT(*) AS n FROM pages GROUP BY kind ORDER BY n DESC")
     .all() as Array<{ kind: string; n: number }>;
@@ -32,14 +32,14 @@ function cmdStats(): void {
   const byDevice = db
     .prepare("SELECT devices, COUNT(*) AS n FROM pages GROUP BY devices ORDER BY n DESC")
     .all() as Array<{ devices: string; n: number }>;
-  console.log("== 裝置來源 ==");
+  console.log("== Device sources ==");
   for (const r of byDevice) console.log(`  ${r.devices.padEnd(8)} ${r.n}`);
 
   const captures = db
     .prepare("SELECT COUNT(*) AS n, SUM(content_text IS NOT NULL) AS with_text FROM captures")
     .get() as { n: number; with_text: number | null };
-  console.log(`== Extension 擷取 ==`);
-  console.log(`  共 ${captures.n} 筆（含正文 ${captures.with_text ?? 0} 筆）`);
+  console.log(`== Extension captures ==`);
+  console.log(`  ${captures.n} total (${captures.with_text ?? 0} with body text)`);
 
   const weekAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
   // Real reading signal (the extension's active-reading seconds) takes priority; history dwell time is secondary
@@ -60,11 +60,11 @@ function cmdStats(): void {
     active_min: number;
     devices: string;
   }>;
-  console.log("== 近 7 天高價值內容候選 ==");
+  console.log("== High-value content candidates, last 7 days ==");
   for (const r of top) {
     const host = new URL(r.url).hostname;
-    const signal = r.active_min > 0 ? `⚡${r.active_min} 分實讀` : `${r.minutes} 分停留`;
-    console.log(`  [${signal}] ${r.title ?? "(無標題)"} — ${host}（${r.total_visits} 次造訪，${r.devices}）`);
+    const signal = r.active_min > 0 ? `⚡${r.active_min} min active read` : `${r.minutes} min dwell`;
+    console.log(`  [${signal}] ${r.title ?? "(untitled)"} — ${host} (${r.total_visits} visits, ${r.devices})`);
   }
 }
 
@@ -94,7 +94,7 @@ function cmdReclassify(): void {
       }
     }
   })();
-  console.log(`重新分類完成：更新 ${changed} 頁、清除敏感頁 ${purged} 頁（含其造訪紀錄）`);
+  console.log(`Reclassification complete: ${changed} pages updated, ${purged} sensitive pages purged (including their visit logs)`);
 }
 
 const cmd = process.argv[2];
@@ -121,15 +121,15 @@ switch (cmd) {
   case "apply": {
     const file = process.argv[3];
     if (!file) {
-      console.error("用法：apply <enrichment.json>");
+      console.error("Usage: apply <enrichment.json>");
       process.exit(1);
     }
     const records = JSON.parse(fs.readFileSync(file, "utf8")) as EnrichmentRecord[];
     const { updated, upgraded } = applyEnrichment(records);
-    console.log(`已套用 ${updated} 筆（unknown 升級為文章 ${upgraded} 筆）`);
+    console.log(`Applied ${updated} records (${upgraded} unknowns upgraded to articles)`);
     break;
   }
   default:
-    console.log("用法：ingest | stats | reclassify | enrich | candidates | fetch-content | apply <file>");
+    console.log("Usage: ingest | stats | reclassify | enrich | candidates | fetch-content | apply <file>");
     process.exit(1);
 }

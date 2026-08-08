@@ -20,9 +20,9 @@ function getOpenAIKey(): string {
     // Not in the Keychain; fall through to throw an explicit error
   }
   throw new Error(
-    "找不到 OpenAI 金鑰。建議存進 macOS Keychain：\n" +
-      `  security add-generic-password -s browstack-openai -a "$USER" -w '<你的 key>' -U\n` +
-      "（或以 OPENAI_API_KEY 環境變數提供）",
+    "OpenAI key not found. Recommended: store it in the macOS Keychain:\n" +
+      `  security add-generic-password -s browstack-openai -a "$USER" -w '<your key>' -U\n` +
+      "(or provide it via the OPENAI_API_KEY environment variable)",
   );
 }
 
@@ -50,7 +50,7 @@ export class OpenAIImageProvider implements ImageProvider {
     if (!res.ok) throw new Error(`OpenAI Images ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = (await res.json()) as { data: Array<{ b64_json?: string }> };
     const b64 = data.data?.[0]?.b64_json;
-    if (!b64) throw new Error("圖像生成回應中沒有影像資料");
+    if (!b64) throw new Error("No image data in the generation response");
     return Buffer.from(b64, "base64");
   }
 }

@@ -28,7 +28,7 @@ try {
   const row = db.prepare("SELECT MAX(sent_at) AS t FROM issues").get();
   db.close();
   if (row?.t && Date.now() / 1000 - row.t < 26 * 3600) {
-    console.log("[weekly] 26 小時內已成功出刊，跳過本次執行（重試時段的冪等保護）");
+    console.log("[weekly] Already published successfully within the last 26 hours, skipping this run (idempotency guard for the retry slot)");
     process.exit(0);
   }
 } catch {
@@ -40,18 +40,18 @@ function run(script, { tolerate = false } = {}) {
   const result = spawnSync("npm", ["run", script], { stdio: "inherit" });
   if (result.status !== 0) {
     if (tolerate) {
-      console.warn(`[weekly] ${script} 失敗（exit ${result.status}），流程繼續 / failed, continuing`);
+      console.warn(`[weekly] ${script} failed (exit ${result.status}), continuing`);
       return;
     }
-    console.error(`[weekly] ${script} 失敗（exit ${result.status}），出刊中止 / failed, aborting`);
+    console.error(`[weekly] ${script} failed (exit ${result.status}), aborting the issue`);
     notify(
-      `本週出刊失敗於 ${script}。常見原因：Claude CLI 憑證過期（跑 claude /login）。詳見 data/logs/weekly.log`,
+      `This week's issue failed at ${script}. Common cause: expired Claude CLI credentials (run claude /login). See data/logs/weekly.log`,
     );
     process.exit(result.status ?? 1);
   }
 }
 
-console.log(`[weekly] Browstack 出刊開始 / issue run started — ${new Date().toString()}`);
+console.log(`[weekly] Browstack issue run started — ${new Date().toString()}`);
 run("ingest");
 // An occasional enrich failure (LLM timeout, etc.) doesn't kill the whole issue: content enriched earlier this week can still publish;
 // if there's ultimately no content at all, email/send refuses to send an empty issue (see the safeguard in email.ts)
@@ -61,4 +61,4 @@ run("cover", { tolerate: true });
 // The week's reading sketch (the collection-showcase subtitle): LLM-generated; a failure doesn't block publishing, the issue just has no sketch subtitle
 run("digest", { tolerate: true });
 run("send");
-console.log(`[weekly] 出刊完成 / done — ${new Date().toString()}`);
+console.log(`[weekly] done — ${new Date().toString()}`);
