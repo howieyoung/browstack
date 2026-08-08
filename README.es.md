@@ -160,7 +160,15 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 
 ### Números y archivo
 
-Cada número está numerado y se conserva: №0 es el número de vista previa; a partir de ahí, cada número es simplemente №N — la progresión la lleva el propio número. Un `send` exitoso sella el número actual; la siguiente ejecución abre automáticamente uno nuevo con portada nueva. Los artefactos se acumulan en `out/` (versiones web + email por número) y `assets/covers/` (una portada por número), con un archivo navegable en `out/index.html`. Si la portada de una semana falla al renderizarse, se reutiliza la del número anterior.
+Cada número está numerado y se conserva: №0 es el número de vista previa; a partir de ahí, cada número es simplemente №N — la progresión la lleva el propio número. Un `send` exitoso sella el número actual; la siguiente ejecución abre automáticamente uno nuevo con portada nueva.
+
+**Tu lectura, como una vitrina navegable.** Cada correo semanal incluye un botón **«Abre tu archivo»**. Enlaza a una página local — servida por el mismo receptor siempre activo en `127.0.0.1:8787` — que dispone cada número anterior como un expositor de revistas, reconstruido en vivo desde tu base de datos (así incluso los números que solo recibiste por correo tienen una versión web completa). Como el archivo se sirve desde tu propia máquina:
+
+- El botón funciona **solo en el mismo Mac, mientras el receptor esté en marcha** (instalado por `npm run schedule:weekly`). Es un enlace muerto en un teléfono o cualquier otro dispositivo — a propósito; tu lectura nunca sale de tu máquina.
+- El enlace lleva un **capability token** — trátalo como una credencial de cuenta (consulta [SECURITY.md](SECURITY.md)). Puedes rotarlo cuando quieras con `npm run token:rotate` (los botones de correos antiguos dejan de funcionar; el siguiente número lleva uno nuevo).
+- ¿Prefieres no rebuscar en el correo? `npm run archive:open` abre el archivo directamente en tu navegador.
+
+Los artefactos también se acumulan en disco en `out/` (versiones web + email por número) y `assets/covers/` (una portada por número), con un índice estático en `out/index.html`. Si la portada de una semana falla al renderizarse, el correo reutiliza la del número anterior; el archivo muestra la portada propia de cada número (o la predeterminada incluida), nunca la de otro número.
 
 ## Principios editoriales
 

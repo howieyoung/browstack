@@ -4,6 +4,14 @@ out/
 assets/covers/
 src/shared/userConfig.ts
 .env
+# `.env` 只精確比對,補上變體;任何位置的 SQLite 檔（含 debug 複本）都不進版控——
+# 貢獻者用自己真實的瀏覽歷史跑 pipeline,一個 git add -A 誤 commit 就是永久公開外洩。
+.env.*
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
 
 # Local tooling
 .claude/

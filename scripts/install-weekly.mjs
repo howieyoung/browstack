@@ -24,8 +24,27 @@ const label = "com.browstack.weekly";
 const logDir = path.join(repoRoot, "data", "logs");
 fs.mkdirSync(logDir, { recursive: true });
 
-// PATH 需含 node/npm 與 claude CLI（launchd 環境極簡）
-const PATH = `${nodeDir}:/usr/local/bin:/usr/bin:/bin:${home}/.local/bin`;
+// PATH 需含 node/npm 與 claude CLI（launchd 環境極簡）;含 Apple Silicon 的 /opt/homebrew
+const PATH = `${nodeDir}:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:${home}/.local/bin`;
+
+// 前置檢查：better-sqlite3 的原生模組必須能在「即將被釘用的這個 node」下載入。
+// 版本不符（例如從 Node 22 shell 執行,但模組是為 Node 20 建置）會讓常駐 server 靜默 crash-loop、
+// 落地資料流失。與其之後才發現,不如現在就擋下並給出明確修法。
+// 必須實際建構一個 DB——原生 .node 是在 new Database() 時才 dlopen,單純 require 不會觸發、會誤判為通過。
+const probe = spawnSync(nodeBin, ["-e", "new (require('better-sqlite3'))(':memory:').close()"], {
+  cwd: repoRoot,
+  encoding: "utf8",
+});
+if (probe.status !== 0) {
+  const hint =
+    (probe.stderr || "").split("\n").find((l) => /NODE_MODULE_VERSION|dlopen|better_sqlite3/i.test(l)) ||
+    (probe.stderr || "").slice(0, 200);
+  console.error("⚠  better-sqlite3 無法在此 node 版本載入,若繼續安裝,常駐接收服務會無法啟動：");
+  console.error(`    node: ${nodeBin}`);
+  console.error(`    ${hint.trim()}`);
+  console.error("    修法：npm rebuild better-sqlite3   （或改用與模組建置版本相符的 node 再重跑本指令）");
+  process.exit(1);
+}
 
 // 出刊有兩個時段：主跑＋ 12 小時後的當日重試（weekly.mjs 有冪等保護，成功後重試自動跳過）
 const retryHour = (hour + 12) % 24;

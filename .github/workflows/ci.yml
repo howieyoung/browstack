@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      # 只用 npm ci（鎖定 lockfile）——絕不 npm install,避免 PR 悄悄改依賴/引入惡意套件
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Security-invariant tests
+        run: npm test
+      - name: Security grep-gates
+        run: npm run security-gates

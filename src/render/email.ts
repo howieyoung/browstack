@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { CONFIG } from "../config.js";
 import { getDb } from "../db.js";
-import { getCurrentIssue } from "../issue.js";
+import { getCurrentIssue, issueDigest } from "../issue.js";
+import { esc, safeHref } from "../shared/html.js";
 import { selectIssueItems, type IssueItem } from "./select.js";
 
 /**
@@ -16,6 +17,7 @@ const db = getDb();
 const now = Math.floor(Date.now() / 1000);
 const weekAgo = now - DAYS * 86400;
 const issue = getCurrentIssue();
+const digest = issueDigest(issue.number); // 當週引言（沒有就不顯示）
 
 const { articles, socialPosts } = selectIssueItems(weekAgo);
 
@@ -32,8 +34,6 @@ db.transaction(() => {
   for (const item of [...articles, ...socialPosts]) ins.run(issue.number, item.id);
 })();
 
-const esc = (s: string) =>
-  s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 const cleanTitle = (s: string) => esc(s.replace(/^\(\d+\)\s*/, "").replace(/\s*[|｜].*$/, "").trim());
 const fmtDate = (sec: number) => {
   const d = new Date(sec * 1000);
@@ -76,7 +76,7 @@ const articleHtml = [...groups.entries()]
         return `
     <div style="padding:18px 0;border-top:1px dotted ${rule}">
       <div style="font-family:${serif};font-size:15px;font-weight:700;color:${accent}">${String(rank).padStart(2, "0")}</div>
-      <a href="${esc(a.url)}" style="font-family:${serif};font-size:19px;font-weight:700;color:${ink};text-decoration:none;line-height:1.55;display:block;margin-top:2px">${cleanTitle(a.title)}</a>
+      <a href="${safeHref(a.url)}" style="font-family:${serif};font-size:19px;font-weight:700;color:${ink};text-decoration:none;line-height:1.55;display:block;margin-top:2px">${cleanTitle(a.title)}</a>
       <ul style="margin:10px 0 0;padding-left:18px">${bullets}</ul>
       ${s.takeaway ? `<div style="margin-top:8px;font-family:${serif};font-size:14px;color:${accent};line-height:1.7">◈ ${esc(s.takeaway)}</div>` : ""}
       <div style="margin-top:8px;font-size:12px;color:${muted}">${hostOf(a.url)} · ${signalLabel(a)}</div>
@@ -94,7 +94,7 @@ const socialHtml = socialPosts
     <div style="background:#f1ebdd;border-left:3px solid ${accent};padding:16px 20px;margin:0 0 16px">
       ${s.context ? `<div style="font-size:13px;font-weight:600;color:${accent};line-height:1.7;margin-bottom:8px">${esc(s.context)}</div>` : ""}
       <div style="font-family:${serif};font-size:14px;line-height:1.9;color:${ink}">${esc(p.title.replace(/^\(\d+\)\s*/, "").trim().slice(0, 220))}${p.title.length > 220 ? "…" : ""}</div>
-      <div style="margin-top:10px;font-size:12px;color:${muted}">${signalLabel(p)} · <a href="${esc(p.url)}" style="color:${accent}">查看原文 →</a></div>
+      <div style="margin-top:10px;font-size:12px;color:${muted}">${signalLabel(p)} · <a href="${safeHref(p.url)}" style="color:${accent}">查看原文 →</a></div>
     </div>`;
   })
   .join("\n");
@@ -109,8 +109,9 @@ const html = `<!doctype html>
       <div style="margin-top:8px;font-size:10px;letter-spacing:.45em;color:${muted};text-transform:uppercase">Your Personal Weekly Digest</div>
     </div>
     <!--COVER-->
-    <div style="padding:20px 40px 24px;text-align:center;border-bottom:3px double ${rule}">
-      <div style="font-size:13px;line-height:1.9;color:${ink}">本期選輯自你過去七天的瀏覽足跡——${articles.length} 篇深讀與 ${socialPosts.length} 則社群迴響，附編輯摘要。</div>
+    <div style="padding:22px 40px 24px;text-align:center;border-bottom:3px double ${rule}">
+      ${digest ? `<div style="font-family:${serif};font-style:italic;font-size:16px;line-height:1.7;color:${ink};margin-bottom:10px">${esc(digest)}</div>` : ""}
+      <div style="font-size:13px;line-height:1.9;color:${muted}">本期選輯自你過去七天的瀏覽足跡——${articles.length} 篇深讀與 ${socialPosts.length} 則社群迴響，附編輯摘要。</div>
     </div>
     <div style="padding:32px 40px">
       <div style="font-size:12px;letter-spacing:.4em;color:${accent};font-weight:600">01 · 本週深讀</div>
@@ -120,6 +121,7 @@ const html = `<!doctype html>
       <div style="font-size:12px;letter-spacing:.4em;color:${accent};font-weight:600;margin-bottom:18px">02 · 社群迴響</div>
       ${socialHtml}
     </div>
+    <!--ARCHIVE_LINK-->
     <div style="padding:28px 40px 36px;border-top:3px double ${rule};text-align:center;font-size:11px;letter-spacing:.3em;color:${muted};line-height:2.2">
       BROWSTACK №${issue.number} · 由你的瀏覽紀錄自動編輯<br/>資料未離開你的機器 · PUBLISHED FOR AN AUDIENCE OF ONE
     </div>

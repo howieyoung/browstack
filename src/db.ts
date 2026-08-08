@@ -28,6 +28,7 @@ export function getDb(): Database.Database {
   fs.mkdirSync(CONFIG.dataDir, { recursive: true });
   db = new Database(path.join(CONFIG.dataDir, "browstack.db"));
   db.pragma("journal_mode = WAL");
+  hardenPerms();
   db.exec(`
     CREATE TABLE IF NOT EXISTS pages (
       id INTEGER PRIMARY KEY,
@@ -108,6 +109,34 @@ function migrate(db: Database.Database): void {
   // 已刊登於第 N 期（封刊時標記）：刊登過的內容永不再入選，
   // 避免「讀了自己的週刊 → 內容下週又被推薦」的自我迴圈
   addColumn("published_in", "published_in INTEGER");
+}
+
+/**
+ * 冪等收緊本機資料檔權限——不只在建立時,每次開 DB 都跑一遍,
+ * 才能一併修好既有安裝的舊檔（多數是 umask 022 留下的 0644,同機其他 OS 帳號可讀）。
+ * data/、out/、assets/covers/ → 0700;DB（含 -wal/-shm）與 logs → 0600。best-effort,失敗不擋。
+ */
+export function hardenPerms(): void {
+  const root = path.join(CONFIG.dataDir, "..");
+  const chmodSafe = (p: string, mode: number) => {
+    try {
+      if (fs.existsSync(p)) fs.chmodSync(p, mode);
+    } catch {
+      // 權限無法變更（唯讀 volume 等）時不擋流程
+    }
+  };
+  for (const dir of [CONFIG.dataDir, path.join(root, "out"), path.join(root, "assets", "covers")]) {
+    chmodSafe(dir, 0o700);
+  }
+  const dbFile = path.join(CONFIG.dataDir, "browstack.db");
+  for (const f of [dbFile, `${dbFile}-wal`, `${dbFile}-shm`]) chmodSafe(f, 0o600);
+  const logsDir = path.join(CONFIG.dataDir, "logs");
+  chmodSafe(logsDir, 0o700);
+  try {
+    for (const f of fs.readdirSync(logsDir)) chmodSafe(path.join(logsDir, f), 0o600);
+  } catch {
+    // logs/ 尚未建立
+  }
 }
 
 export function getMeta(key: string): string | null {
