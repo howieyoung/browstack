@@ -78,13 +78,18 @@ export async function classifyCandidates(candidates: Candidate[]): Promise<Enric
   const list = candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, host: new URL(c.url).hostname }));
   const reply = await provider.complete({
     system:
-      "You are the commissioning editor of the Browstack personal weekly digest. Keep only knowledge-type " +
-      "content: technology, AI, industry analysis, business insight, substantive public-affairs pieces, " +
-      "professional knowledge, and social posts with a real point of view or informational value. " +
-      "Always exclude: entertainment gossip, lotteries, shopping promos, membership drives, site sections or " +
-      "list pages (not a single piece), pure chatter or venting, ad/marketing pages, and all 'quick lookup' " +
-      "behavior — encyclopedia entries, dictionary/word lookups, weather, prize checks — which is looking " +
-      "things up, not reading.",
+      "You are the commissioning editor of the Browstack personal weekly digest. Knowledge is a HARD gate: keep " +
+      "only a piece that teaches, explains, analyzes, or argues something with real substance worth remembering — " +
+      "technology, AI, industry analysis, business insight, substantive public-affairs pieces, professional " +
+      "knowledge, and social posts with a genuine point of view or informational value. " +
+      "Everything else is is_knowledge:false, no matter how long it was viewed. Always exclude: " +
+      "entertainment gossip; lotteries and prize checks; shopping promos, product/store pages and menus; " +
+      "membership drives and ads/marketing; movie showtimes, cinema/ticketing/booking/reservation and event " +
+      "signup pages; schedules, timetables and any transactional or logistics page (checkout, order status, " +
+      "seat selection); site sections or list/index pages (not a single piece); pure chatter or venting; and " +
+      "all 'quick lookup' behavior — encyclopedia entries, dictionary/word lookups, weather. If a page is about " +
+      "DOING or BUYING something (attending, booking, ordering, watching) rather than UNDERSTANDING something, " +
+      "it is not knowledge.",
     prompt:
       `Classify the candidates below. Return a JSON array; each item ` +
       `{"id": number, "is_knowledge": boolean, "topic": "a short topic label in ${lang} (2–4 words, or 2–6 characters for CJK)"} ` +
