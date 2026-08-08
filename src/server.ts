@@ -4,6 +4,7 @@ import path from "node:path";
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 import { checkArchiveKey, checkSessionCookie, getArchiveTokenCached, sessionCookieValue } from "./archiveToken.js";
+import { checkCaptureSecret, getCaptureSecretCached } from "./captureSecret.js";
 import { classifyUrl } from "./classify/filter.js";
 import { getDb, hardenPerms } from "./db.js";
 import { findCover } from "./issue.js";
@@ -236,9 +237,12 @@ function readBody(req: http.IncomingMessage, limit: number): Promise<string> {
 }
 
 // getToken is injectable (a fixed token for tests, avoiding the Keychain); defaults to reading from the Keychain.
-export function createBrowstackServer(opts: { getToken?: () => string | null } = {}): http.Server {
+export function createBrowstackServer(
+  opts: { getToken?: () => string | null; getCaptureSecret?: () => string | null } = {},
+): http.Server {
   // Default to the short-TTL cached version: avoids forking `security` on every request (including each cover on the index page) and blocking the event loop.
   const getToken = opts.getToken ?? getArchiveTokenCached;
+  const getCapture = opts.getCaptureSecret ?? getCaptureSecretCached;
   return http.createServer(async (req, res) => {
     // headersSent guard: a streaming/already-responded request must not be written again (avoids a crash-loop).
     const sendJson = (code: number, body: unknown) => {
@@ -288,6 +292,13 @@ export function createBrowstackServer(opts: { getToken?: () => string | null } =
         const ctype = (req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
         if (ctype !== "application/json") {
           return sendJson(415, { ok: false, error: "content-type must be application/json" });
+        }
+        // Per-install secret: the extension holds it (baked at `npm run build:ext`) and sends X-Browstack-Token.
+        // Blocks a non-browser local process from injecting captures, and adds defense-in-depth if CORS ever fails. Fail closed.
+        const tokHeader = req.headers["x-browstack-token"];
+        const tok = Array.isArray(tokHeader) ? tokHeader[0] : tokHeader;
+        if (!checkCaptureSecret(tok, getCapture())) {
+          return sendJson(401, { ok: false, error: "unauthorized" });
         }
         const raw = await readBody(req, 10 * 1024 * 1024);
         const parsed = JSON.parse(raw) as { items?: CaptureItem[] };

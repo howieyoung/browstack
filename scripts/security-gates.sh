@@ -44,6 +44,16 @@ if [ -f src/archiveToken.ts ]; then
   deny "archive token has no hardcoded/default fallback" 'archive[_-]?token[^\n]*(\|\||\?\?)[[:space:]]*[\"'\''`]' src/
 fi
 
+# The /capture per-install secret must be constant-time compared, CSPRNG-only, and fail-closed.
+if [ -f src/captureSecret.ts ]; then
+  if ! grep -q "timingSafeEqual" src/captureSecret.ts; then
+    echo "✗ GATE FAILED: captureSecret.ts must compare with crypto.timingSafeEqual"
+    fail=1
+  else
+    echo "✓ captureSecret.ts uses timingSafeEqual"
+  fi
+fi
+
 # Personal data files must never be committed to version control
 tracked="$(git ls-files -- data/ out/ assets/covers/ src/shared/userConfig.ts 2>/dev/null || true)"
 if [ -n "$tracked" ]; then

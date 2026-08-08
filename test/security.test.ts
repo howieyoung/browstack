@@ -17,8 +17,10 @@ const GOOD_COOKIE = `${"bs"}=${sessionCookieValue(TEST_TOKEN)}`;
 let server: http.Server;
 let port: number;
 
+const TEST_CAPTURE = "c".repeat(64); // injected /capture secret
+
 before(async () => {
-  server = createBrowstackServer({ getToken: () => TEST_TOKEN });
+  server = createBrowstackServer({ getToken: () => TEST_TOKEN, getCaptureSecret: () => TEST_CAPTURE });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   port = (server.address() as AddressInfo).port;
 });
@@ -41,6 +43,7 @@ function request(opts: {
   host?: string | null;
   contentType?: string;
   cookie?: string;
+  captureToken?: string;
   body?: string;
 }): Promise<Res> {
   return new Promise((resolve, reject) => {
@@ -48,6 +51,7 @@ function request(opts: {
     headers.host = opts.host === undefined ? "127.0.0.1:8787" : (opts.host ?? "");
     if (opts.contentType) headers["content-type"] = opts.contentType;
     if (opts.cookie) headers.cookie = opts.cookie;
+    if (opts.captureToken !== undefined) headers["x-browstack-token"] = opts.captureToken;
     if (opts.body !== undefined) headers["content-length"] = String(Buffer.byteLength(opts.body));
     const req = http.request(
       { host: "127.0.0.1", port, method: opts.method ?? "GET", path: opts.path ?? "/", headers },
@@ -102,11 +106,28 @@ test("/capture:非 application/json 一律拒絕", async () => {
   assert.equal(noType.status, 415, "無 content-type 應被擋");
 });
 
-test("/capture:application/json 通過 content-type 閘（{} → 400 items required,未觸發 DB）", async () => {
+test("/capture:缺 X-Browstack-Token → 401(即使 content-type 正確)", async () => {
+  const res = await request({ method: "POST", path: "/capture", contentType: "application/json", body: "{}" });
+  assert.equal(res.status, 401);
+});
+
+test("/capture:錯誤 token → 401", async () => {
   const res = await request({
     method: "POST",
     path: "/capture",
     contentType: "application/json",
+    captureToken: "d".repeat(64),
+    body: "{}",
+  });
+  assert.equal(res.status, 401);
+});
+
+test("/capture:合法 token + application/json 通過閘（{} → 400 items required,未觸發 DB）", async () => {
+  const res = await request({
+    method: "POST",
+    path: "/capture",
+    contentType: "application/json",
+    captureToken: TEST_CAPTURE,
     body: "{}",
   });
   assert.equal(res.status, 400);

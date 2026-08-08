@@ -10,6 +10,11 @@ import { SHARED } from "../../src/shared/settings.js";
 const ENDPOINT = `http://127.0.0.1:${SHARED.serverPort}`;
 const MAX_QUEUE = 300;
 
+// Per-install /capture secret, baked in at `npm run build:ext` (esbuild --define). The server
+// validates it as X-Browstack-Token. Empty string if the bundle was built without provisioning.
+declare const __BROWSTACK_CAPTURE_TOKEN__: string;
+const CAPTURE_TOKEN = typeof __BROWSTACK_CAPTURE_TOKEN__ === "string" ? __BROWSTACK_CAPTURE_TOKEN__ : "";
+
 interface Stats {
   totalSent: number;
   lastFlushAt: number | null;
@@ -52,7 +57,7 @@ function flush(): Promise<void> {
     try {
       const res = await fetch(`${ENDPOINT}/capture`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-browstack-token": CAPTURE_TOKEN },
         body: JSON.stringify({ items: queue }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
