@@ -233,18 +233,49 @@ export async function summarizeKnowledgePages(): Promise<number> {
   return done;
 }
 
+// Batches keep each classify call small (faster, less likely to hit the LLM-call timeout) and let
+// one bad batch fail without sinking the whole run; each batch gets its own retry with backoff.
+// Root cause of the 2026-08-29 missed issue: a single 50-item call timed out 4/4 times that day
+// (both the scheduled run and its same-day retry, each exhausting its own one retry) — nothing
+// classified, so the empty-issue guard correctly refused to send, but the week was silently lost.
+const CLASSIFY_BATCH_SIZE = 25;
+const CLASSIFY_ATTEMPTS_PER_BATCH = 2;
+
+async function classifyWithRetries(candidates: Candidate[]): Promise<EnrichmentRecord[]> {
+  const batches: Candidate[][] = [];
+  for (let i = 0; i < candidates.length; i += CLASSIFY_BATCH_SIZE) {
+    batches.push(candidates.slice(i, i + CLASSIFY_BATCH_SIZE));
+  }
+  const records: EnrichmentRecord[] = [];
+  for (const [i, batch] of batches.entries()) {
+    const label = batches.length > 1 ? ` (batch ${i + 1}/${batches.length})` : "";
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= CLASSIFY_ATTEMPTS_PER_BATCH; attempt++) {
+      try {
+        records.push(...(await classifyCandidates(batch)));
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+        console.log(`Classification failed${label}, attempt ${attempt}/${CLASSIFY_ATTEMPTS_PER_BATCH} (${String(e).slice(0, 160)})`);
+        if (attempt < CLASSIFY_ATTEMPTS_PER_BATCH) await sleep(5000 * attempt);
+      }
+    }
+    if (lastErr) console.warn(`Giving up on batch${label} — its items stay unclassified this run, will retry next week.`);
+  }
+  return records;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Fully automated enrich: called weekly by the scheduler
 export async function enrich(): Promise<void> {
   const candidates = getCandidates();
   console.log(`${candidates.length} candidates, handing off to ${getProvider().name} for classification…`);
   if (candidates.length > 0) {
-    let records: EnrichmentRecord[];
-    try {
-      records = await classifyCandidates(candidates);
-    } catch (e) {
-      console.log(`Classification failed (${String(e).slice(0, 120)}), retrying once…`);
-      records = await classifyCandidates(candidates);
-    }
+    const records = await classifyWithRetries(candidates);
     const { updated, upgraded } = applyEnrichment(records);
     console.log(`Classified ${updated} items (${upgraded} unknowns upgraded to articles)`);
   }

@@ -79,8 +79,13 @@ if (jsdomProbe.status !== 0) {
   process.exit(1);
 }
 
-// Publishing has two slots: the main run + a same-day retry 12 hours later (weekly.mjs is idempotent, so the retry auto-skips after success)
+// Publishing has three slots: the main run, a same-day retry 12 hours later, and a next-day
+// catch-up (weekly.mjs is idempotent, so any slot after a success auto-skips). Added after an
+// incident (2026-08-29) where the classify LLM call timed out on both same-day slots — a genuinely
+// bad day can still exhaust two tries; a third chance roughly 24h later catches that case without
+// requiring the user to notice and re-run manually.
 const retryHour = (hour + 12) % 24;
+const catchUpDay = (day + 1) % 7;
 
 const agentPlist = (agentLabel, programArgs, scheduleXml, logFile) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -114,6 +119,11 @@ const weeklyCalendar = `<key>StartCalendarInterval</key>
     <dict>
       <key>Weekday</key><integer>${day}</integer>
       <key>Hour</key><integer>${retryHour}</integer>
+      <key>Minute</key><integer>${minute}</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key><integer>${catchUpDay}</integer>
+      <key>Hour</key><integer>${hour}</integer>
       <key>Minute</key><integer>${minute}</integer>
     </dict>
   </array>`;
@@ -181,7 +191,7 @@ installAgent(
 
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const hh = (h) => String(h).padStart(2, "0");
-console.log(`Scheduled: auto-publish every ${dayNames[day]} at ${hh(hour)}:${hh(minute)} (${hh(retryHour)}:${hh(minute)} same-day retry, auto-skipped on success)`);
+console.log(`Scheduled: auto-publish every ${dayNames[day]} at ${hh(hour)}:${hh(minute)} (${hh(retryHour)}:${hh(minute)} same-day retry + ${dayNames[catchUpDay]} ${hh(hour)}:${hh(minute)} next-day catch-up, both auto-skipped on success)`);
 console.log(`heartbeat: keeps the Claude CLI credentials fresh every day at 09:37, notifies on expiry (auto-skipped if the CLI isn't installed)`);
 console.log(`receiver: resident on 127.0.0.1:8787 (starts at login, auto-restarts on crash)`);
 console.log(`plist: ${weeklyPlistPath}`);

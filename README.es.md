@@ -152,7 +152,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Si tu Mac está dormido a la hora programada, launchd ejecuta el trabajo al despertar.
 - Un fallo al renderizar la portada (p. ej. sin clave de OpenAI) no bloquea el número — se reutiliza la portada anterior.
 - Un fallo transitorio del LLM tampoco mata la ejecución: la clasificación se reintenta una vez y el número sale con lo ya enriquecido. Nunca se envía un número vacío.
-- La programación se dispara dos veces cada sábado (08:17 principal, 20:17 reintento); si el número ya salió, el reintento se omite automáticamente. Un fallo fatal lanza una notificación de macOS en lugar de fallar en silencio.
+- La programación se dispara tres veces: sábado principal (08:17), reintento el mismo día (20:17), y recuperación al día siguiente (domingo 08:17). En cuanto un número sale con éxito, cualquier franja posterior se omite automáticamente. Un fallo fatal lanza una notificación de macOS en lugar de fallar en silencio. (La tercera franja existe porque un día realmente malo puede agotar los dos intentos del mismo día — la clasificación ahora también se divide en lotes con sus propios reintentos, lo que lo hace más raro, pero la oportunidad extra un día después no cuesta nada y no requiere tu atención.)
 - Un latido diario de credenciales (09:37) mantiene fresca la sesión del CLI de Claude y te avisa con días de antelación si vuelve a hacer falta `claude /login`.
 - Guardas de calidad integradas: los fragmentos de extracción (< 300 caracteres) y las publicaciones sociales duplicadas se degradan automáticamente; las búsquedas de enciclopedia/diccionario nunca califican.
 - Logs: `data/logs/weekly.log`. Ejecución manual en cualquier momento: `npm run weekly`.

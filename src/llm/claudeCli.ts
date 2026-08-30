@@ -38,7 +38,12 @@ export class ClaudeCliProvider implements LLMProvider {
       const timeoutMs = this.cliOpts.timeoutMs ?? 600_000;
       const timer = setTimeout(() => {
         child.kill();
-        reject(new Error(`claude-cli timed out (${Math.round(timeoutMs / 1000)}s)`));
+        // Include whatever the process had produced before it was killed — distinguishes a true
+        // hang (nothing at all) from a slow-but-working call cut off mid-stream, which is otherwise
+        // indistinguishable from the outside and impossible to diagnose after the fact.
+        const partial = (out || err).trim();
+        const hint = partial ? ` — partial output: ${partial.slice(0, 200)}` : " — no output was produced before the kill";
+        reject(new Error(`claude-cli timed out (${Math.round(timeoutMs / 1000)}s)${hint}`));
       }, timeoutMs);
       child.stdout.on("data", (d: Buffer) => (out += d.toString()));
       child.stderr.on("data", (d: Buffer) => (err += d.toString()));
