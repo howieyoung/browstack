@@ -51,6 +51,23 @@ Open `src/shared/userConfig.ts` with the user and fill in:
 - `email.from` / `email.to` — their Gmail address (usually both the same)
 - `chromeProfile` — usually `"Default"`; check `ls ~/Library/Application\ Support/Google/Chrome/`
 - `noiseHosts` — their own products / work dashboards to exclude
+- `ownSocialHandles` — **ask for this explicitly; it is easy to skip and expensive to miss.**
+  People re-read what they publish (checking replies, re-reading the phrasing), so without it
+  their own posts outrank everything they actually read and the digest fills up with their own
+  voice. Ask for every account they post under, personal *and* brand: Threads/Instagram/X/
+  YouTube handle, Facebook profile username, LinkedIn public id, plus their Facebook display
+  name as it appears in "<Name> | Facebook" titles. After `npm run ingest` you can offer to
+  propose candidates from their own history (local, shown only to them, they confirm):
+  ```sql
+  -- Their own handle usually dominates by an order of magnitude (they revisit their own posts),
+  -- so the top row is almost always theirs — but let them confirm rather than assuming.
+  SELECT SUBSTR(h, 1, INSTR(h || '/', '/') - 1) AS handle, COUNT(*) n
+    FROM (SELECT SUBSTR(url, INSTR(url, '/@') + 2) AS h FROM pages WHERE url LIKE '%threads.%/@%')
+   GROUP BY 1 ORDER BY n DESC LIMIT 15;
+  ```
+  If they configure this after already ingesting, run `npm run reclassify` so past rows are
+  demoted too.
+- `contentLanguage` — leave `"auto"` unless they want summaries forced into one language.
 
 ### Step 2 — LLM (required: powers summaries & cover concepts)
 Preferred: Claude Code CLI with their existing subscription:
@@ -130,6 +147,9 @@ via `--experimental-require-module`, handled automatically).
 - Email didn't arrive → check `security find-generic-password -s browstack-smtp` exists; app
   passwords require 2-Step Verification enabled.
 - Empty issue → user needs ≥ a few days of Chrome browsing; check `npm run stats`.
+- The user's own posts appear in the issue → `ownSocialHandles` is unset or missing that account.
+  Add the handle (see Step 1), then `npm run reclassify` to demote already-stored rows; the next
+  issue is clean without waiting for anything else.
 - Mobile browsing missing → Chrome Sync must be on (same Google account on phone).
 - **`better_sqlite3.node ... NODE_MODULE_VERSION` / `ERR_DLOPEN_FAILED`** → the native module is built
   for the Node that installed it; the current Node differs. The resident server & weekly are pinned to
