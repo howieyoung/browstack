@@ -76,7 +76,7 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 git clone https://github.com/<you>/browstack.git
 cd browstack
 npm install                 # also creates src/shared/userConfig.ts from the template
-$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, personal noise domains
+$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, noise domains, your own social handles
 
 npm run ingest              # import & classify your Chrome history (local only)
 npm run stats               # sanity check: classification stats + top candidates
@@ -151,7 +151,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Runs in your logged-in user session, so the Keychain (LLM/OpenAI/SMTP secrets) is available.
 - If your Mac is asleep at the scheduled time, launchd runs the job on next wake.
 - A failed cover render (e.g. missing OpenAI key) doesn't block the issue — the previous cover is reused.
-- A transient LLM failure doesn't kill the run either: classification retries once, and the issue ships with whatever was already enriched. An empty issue is never sent.
+- A transient LLM failure doesn't kill the run either: classification runs in batches, each retried on its own, and a batch that still fails is skipped rather than sinking the run — the issue ships with whatever was enriched. An empty issue is never sent.
 - The schedule fires three times: Saturday primary (08:17), a same-day retry (20:17), and a next-day catch-up (Sunday 08:17). Once an issue has shipped, every later slot is an automatic no-op. A fatal failure raises a macOS notification instead of failing silently. (The third slot exists because a genuinely bad day can exhaust both same-day tries — classification is now also batched with its own retries, making that rarer, but the extra day-later chance costs nothing and needs no attention from you.)
 - A daily credential heartbeat (09:37) keeps the Claude CLI session fresh and notifies you days ahead if `claude /login` is needed again.
 - Built-in quality guards: extraction stubs (< 300 chars) and duplicate social posts are auto-demoted; encyclopedia/dictionary lookups never qualify.
@@ -173,6 +173,7 @@ Artifacts also accumulate on disk under `out/` (web + email versions per issue) 
 ## Editorial principles
 
 - **Knowledge is a hard gate.** Entertainment gossip, lotteries, shopping promos, movie showtimes and ticketing/booking, event signups, and dictionary-style quick lookups are excluded regardless of dwell time — anything about *doing or buying* rather than *understanding*.
+- **Your own posts are output, not reading.** List your handles in `ownSocialHandles` and anything you published (Threads, Instagram, Facebook, X, LinkedIn) is excluded — you re-read what you publish, so dwell time alone would otherwise rank your own writing as your top read of the week. Matching is exact per account, so a post that merely mentions you still counts as someone else's writing.
 - **Summaries must replace the original.** Three bullets ≤ 42 chars + one takeaway ≤ 32 chars per article.
 - **The issue is an artifact.** Fixed palette, serif nameplate, issue numbering — beauty gets it opened, content quality gets it finished.
 

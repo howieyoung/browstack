@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CONFIG } from "../config.js";
 import { classifyUrl } from "../classify/filter.js";
+import { isOwnSocialPost } from "../classify/ownPosts.js";
 import { getDb, getMeta, setMeta, type Device } from "../db.js";
 import { normalizeUrl } from "../shared/urls.js";
 
@@ -89,11 +90,13 @@ export function ingestChromeHistory(): IngestSummary {
     for (const row of rows) {
       // Normalize: strip tracking params like fbclid/utm_*, merging multiple clicks on the same content into one page.
       const url = normalizeUrl(row.url);
-      const { kind, sensitive } = classifyUrl(url);
+      const { kind: classifiedKind, sensitive } = classifyUrl(url);
       if (sensitive) {
         summary.sensitiveSkipped++;
         continue;
       }
+      // Your own posts are output, not reading — demote to noise so they can never be selected
+      const kind = isOwnSocialPost(url, row.title) ? "noise" : classifiedKind;
       summary.kinds[kind] = (summary.kinds[kind] ?? 0) + 1;
 
       const unixSec = chromeToUnixSec(row.visit_time);

@@ -1,3 +1,4 @@
+import { isOwnSocialPost } from "../classify/ownPosts.js";
 import { getDb } from "../db.js";
 import { normalizeTitle, normalizeUrl } from "../shared/urls.js";
 
@@ -60,6 +61,9 @@ export function selectIssueItems(weekAgo: number): { articles: IssueItem[]; soci
   const dedupe = (items: IssueItem[], limit: number) => {
     const out: IssueItem[] = [];
     for (const item of items) {
+      // Last line of defense for own posts: rows stored before the handle was configured are
+      // still classified as social/article, so filter at selection time too — no reclassify needed.
+      if (isOwnSocialPost(item.url, item.title)) continue;
       const keys = [normalizeUrl(item.url), normalizeTitle(item.title)];
       if (keys.some((k) => seen.has(k))) continue;
       for (const k of keys) seen.add(k);

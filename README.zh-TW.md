@@ -75,7 +75,7 @@ Extension ──────┘  (知識過濾   (LLM     (藝術總監  (報頭
 git clone https://github.com/<你>/browstack.git
 cd browstack
 npm install                 # 會自動從範本建立 src/shared/userConfig.ts
-$EDITOR src/shared/userConfig.ts   # 填入你的 email、Chrome profile、個人雜訊網域
+$EDITOR src/shared/userConfig.ts   # 填入你的 email、Chrome profile、雜訊網域、你自己的社群帳號
 
 npm run ingest              # 匯入並分類你的 Chrome 紀錄（純本機）
 npm run stats               # 檢查：分類統計＋高價值內容候選
@@ -150,7 +150,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0
 - 在你登入的使用者 session 中執行，因此 Keychain（LLM／OpenAI／SMTP 金鑰）都可用。
 - 排程時間 Mac 在睡眠？launchd 會在下次喚醒時補跑。
 - 封面渲染失敗（例如未設 OpenAI 金鑰）不會擋出刊——沿用上一張封面。
-- LLM 偶發失敗也不會殺掉整期：分類會自動重試一次，刊物以已增潤的內容照常出刊；空刊物絕不寄出。
+- LLM 偶發失敗也不會殺掉整期：分類改為分批進行、每批各自重試，仍失敗的批次跳過而非拖垮整期，刊物以已增潤的內容照常出刊；空刊物絕不寄出。
 - 排程共三個時段：週六主跑（08:17）、當日重試（20:17）、次日補跑（週日 08:17）；只要有一次成功，之後的時段一律自動跳過。致命失敗會發 macOS 通知，絕不無聲。（第三個時段的由來：曾發生同一天兩個時段都撞上 LLM 逾時而整週開天窗——分類呼叫現已改為分批並各自重試，機率已降低，但多一次隔天的機會不需要你費心，何樂不為。）
 - 每天 09:37 的憑證心跳保鮮 Claude CLI session，若需重新 `claude /login` 會提前好幾天通知你。
 - 內建品管：擷取空殼（正文 < 300 字）與重複社群貼文自動降級；百科／字典快查一律不入選。
@@ -172,6 +172,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # 例：每週一 09:00（--day 0
 ## 編輯原則
 
 - **知識性是硬門檻。** 娛樂八卦、彩券、購物促銷、電影場次與訂票／訂位、活動報名、字典式快查，無論停留多久一律排除——任何關於*做某件事或買某件事*、而非*理解*的內容。
+- **你自己的貼文是產出，不是閱讀。** 把你的帳號填進 `ownSocialHandles`，你自己發的內容（Threads、Instagram、Facebook、X、LinkedIn）就會被排除——你一定會反覆看自己剛發的貼文，不排除的話光靠停留時間，你自己的文章就會變成當週閱讀榜首。比對是逐一帳號精準比對，所以只是提到你的貼文仍算別人的創作、照常入選。
 - **摘要要能取代原文。** 每篇三個重點（各 ≤ 42 字）＋一句 takeaway（≤ 32 字）。
 - **刊物即藝術品。** 固定色盤、serif 報頭、期數編號——美感讓人打開它，內容品質讓人讀完它。
 

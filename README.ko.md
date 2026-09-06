@@ -76,7 +76,7 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 git clone https://github.com/<you>/browstack.git
 cd browstack
 npm install                 # also creates src/shared/userConfig.ts from the template
-$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, personal noise domains
+$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, noise domains, your own social handles
 
 npm run ingest              # import & classify your Chrome history (local only)
 npm run stats               # sanity check: classification stats + top candidates
@@ -151,7 +151,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - 로그인된 사용자 세션에서 실행되므로 Keychain(LLM/OpenAI/SMTP 비밀 정보)을 사용할 수 있습니다.
 - 예약 시각에 Mac이 잠자기 상태여도, 다음 깨어날 때 launchd가 실행합니다.
 - 표지 렌더링 실패(예: OpenAI 키 미설정)는 발행을 막지 않습니다——이전 표지를 재사용합니다.
-- LLM의 일시적 실패도 실행을 죽이지 않습니다: 분류는 1회 자동 재시도하고, 이미 보강된 내용으로 발행합니다. 빈 호는 절대 발송되지 않습니다.
+- LLM의 일시적 실패도 실행을 죽이지 않습니다: 분류는 배치 단위로 수행되고 각 배치가 개별적으로 재시도되며, 그래도 실패한 배치는 전체를 무너뜨리는 대신 건너뜁니다. 보강된 내용으로 발행되고, 빈 호는 절대 발송되지 않습니다.
 - 스케줄은 3회 실행됩니다: 토요일 메인(08:17), 당일 재시도(20:17), 다음 날 캐치업(일요일 08:17). 한 번이라도 발행에 성공하면 이후 슬롯은 자동으로 건너뜁니다. 치명적 실패는 macOS 알림으로 알려 조용히 실패하지 않습니다. (세 번째 슬롯을 추가한 이유: 같은 날 두 번 모두 LLM 호출이 타임아웃되어 한 주 전체가 발행되지 않은 사례가 있었기 때문입니다—분류 호출은 이제 배치로 나뉘어 각각 재시도하므로 훨씬 드물어졌지만, 하루 뒤의 추가 기회는 비용 없이 당신의 개입 없이 문제를 해결해 줍니다.)
 - 매일 09:37 자격 증명 하트비트가 Claude CLI 세션을 유지하고, `claude /login`이 다시 필요하면 며칠 전에 알려 줍니다.
 - 내장 품질 가드: 추출 스텁(300자 미만)과 중복 SNS 게시물은 자동 강등; 백과사전·사전 검색은 애초에 대상 외.
@@ -173,6 +173,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 ## 편집 원칙
 
 - **지식성은 하드 게이트.** 연예 가십, 복권, 쇼핑 프로모션, 영화 상영 시간표와 예매/예약, 이벤트 신청, 사전식 빠른 검색은 체류 시간과 무관하게 제외——*이해*보다 *행동이나 구매*에 관한 것은 무엇이든.
+- **내가 쓴 글은 읽기가 아니라 산출물입니다.** 본인 계정을 `ownSocialHandles`에 등록하면 직접 게시한 콘텐츠(Threads, Instagram, Facebook, X, LinkedIn)는 제외됩니다——방금 올린 자기 글은 계속 다시 보게 되므로, 체류 시간만으로 따지면 자기 글이 그 주의 최다 열독 콘텐츠가 되어 버립니다. 계정 단위 정확 일치로 판별하므로, 당신을 언급하기만 한 게시물은 다른 사람의 글로서 정상적으로 선정됩니다.
 - **요약은 원문을 대체해야 합니다.** 기사당 요점 3개(각 42자 이내) + 테이크어웨이 1줄(32자 이내).
 - **한 호는 아티팩트입니다.** 고정 팔레트, 세리프 제호, 호수 번호——아름다움이 열게 하고, 내용의 질이 끝까지 읽게 합니다.
 

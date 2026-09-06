@@ -76,7 +76,7 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 git clone https://github.com/<you>/browstack.git
 cd browstack
 npm install                 # also creates src/shared/userConfig.ts from the template
-$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, personal noise domains
+$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, noise domains, your own social handles
 
 npm run ingest              # import & classify your Chrome history (local only)
 npm run stats               # sanity check: classification stats + top candidates
@@ -151,7 +151,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - Se ejecuta en tu sesión de usuario, así que el Keychain (secretos de LLM/OpenAI/SMTP) está disponible.
 - Si tu Mac está dormido a la hora programada, launchd ejecuta el trabajo al despertar.
 - Un fallo al renderizar la portada (p. ej. sin clave de OpenAI) no bloquea el número — se reutiliza la portada anterior.
-- Un fallo transitorio del LLM tampoco mata la ejecución: la clasificación se reintenta una vez y el número sale con lo ya enriquecido. Nunca se envía un número vacío.
+- Un fallo transitorio del LLM tampoco mata la ejecución: la clasificación se hace por lotes, cada uno con sus propios reintentos, y un lote que aun así falla se omite en vez de hundir la ejecución; el número sale con lo ya enriquecido. Nunca se envía un número vacío.
 - La programación se dispara tres veces: sábado principal (08:17), reintento el mismo día (20:17), y recuperación al día siguiente (domingo 08:17). En cuanto un número sale con éxito, cualquier franja posterior se omite automáticamente. Un fallo fatal lanza una notificación de macOS en lugar de fallar en silencio. (La tercera franja existe porque un día realmente malo puede agotar los dos intentos del mismo día — la clasificación ahora también se divide en lotes con sus propios reintentos, lo que lo hace más raro, pero la oportunidad extra un día después no cuesta nada y no requiere tu atención.)
 - Un latido diario de credenciales (09:37) mantiene fresca la sesión del CLI de Claude y te avisa con días de antelación si vuelve a hacer falta `claude /login`.
 - Guardas de calidad integradas: los fragmentos de extracción (< 300 caracteres) y las publicaciones sociales duplicadas se degradan automáticamente; las búsquedas de enciclopedia/diccionario nunca califican.
@@ -173,6 +173,7 @@ Los artefactos también se acumulan en disco en `out/` (versiones web + email po
 ## Principios editoriales
 
 - **El conocimiento es una puerta dura.** Cotilleos de entretenimiento, loterías, promociones de compras, horarios de cine y venta/reserva de entradas, inscripciones a eventos y búsquedas rápidas tipo diccionario quedan excluidos sin importar el tiempo de permanencia — todo lo que tiene que ver con *hacer o comprar* en lugar de *entender*.
+- **Tus propias publicaciones son producción, no lectura.** Añade tus cuentas a `ownSocialHandles` y todo lo que hayas publicado (Threads, Instagram, Facebook, X, LinkedIn) queda excluido: releerás lo que publicas, así que solo con el tiempo de permanencia tus propios textos acabarían encabezando tu lectura de la semana. La coincidencia es exacta por cuenta, de modo que una publicación que simplemente te menciona sigue contando como escritura ajena y puede entrar.
 - **Los resúmenes deben sustituir al original.** Tres puntos ≤ 42 caracteres + una conclusión ≤ 32 caracteres por artículo.
 - **El número es un artefacto.** Paleta fija, cabecera serif, numeración de números — la belleza hace que lo abras, la calidad del contenido hace que lo termines.
 

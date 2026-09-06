@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { checkArchiveKey, checkSessionCookie, getArchiveTokenCached, sessionCookieValue } from "./archiveToken.js";
 import { checkCaptureSecret, getCaptureSecretCached } from "./captureSecret.js";
 import { classifyUrl } from "./classify/filter.js";
+import { isOwnSocialPost } from "./classify/ownPosts.js";
 import { getDb, hardenPerms } from "./db.js";
 import { findCover } from "./issue.js";
 import { renderArchiveIndex, renderIssuePage } from "./render/archive.js";
@@ -193,7 +194,8 @@ function handleBatch(items: CaptureItem[]): { accepted: number; skipped: number 
       // Normalize + re-classify server-side: defense in depth, so sensitive pages are not persisted even if sent
       item.url = normalizeUrl(item.url);
       const { kind, sensitive } = classifyUrl(item.url);
-      if (sensitive || kind === "noise") {
+      // Own posts are output, not reading — never persisted, so they can't reach an issue
+      if (sensitive || kind === "noise" || isOwnSocialPost(item.url, item.title)) {
         skipped++;
         continue;
       }

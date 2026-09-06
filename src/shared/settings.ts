@@ -9,6 +9,9 @@ export const SHARED = {
   // Personal noise domains from userConfig (matched including all subdomains).
   userNoiseHosts: USER_CONFIG.noiseHosts,
 
+  // Your own social handles/ids — your own posts are output, not reading, and are excluded.
+  ownSocialHandles: USER_CONFIG.ownSocialHandles ?? [],
+
   // A tab left open but unread inflates visit_duration to hours; cap each visit at 20 minutes when scoring.
   maxVisitDurationSec: 20 * 60,
 

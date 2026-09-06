@@ -45,6 +45,9 @@ const NOISE_HOST = [
 const SOCIAL_PERMALINK: Array<{ host: RegExp; path: RegExp }> = [
   { host: /(^|\.)facebook\.com$/, path: /(\/story\.php|\/posts\/|\/reel\/|\/photo|\/share\/p\/|\/groups\/.+\/(posts|permalink)\/)/ },
   { host: /(^|\.)threads\.(net|com)$/, path: /\/@[^/]+\/post\// },
+  // Instagram must be listed here: without it, /p/<id> matches the generic ARTICLE_PATH "/p/" rule
+  // below and an image post gets treated as a deep-read article.
+  { host: /(^|\.)instagram\.com$/, path: /\/(p|reel|reels|tv)\// },
   { host: /(^|\.)(twitter|x)\.com$/, path: /\/[^/]+\/status\/\d+/ },
   { host: /(^|\.)linkedin\.com$/, path: /\/posts\// },
   { host: /(^|\.)reddit\.com$/, path: /\/r\/[^/]+\/comments\// },

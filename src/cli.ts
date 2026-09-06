@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { ingestChromeHistory } from "./ingest/chrome.js";
 import { classifyUrl } from "./classify/filter.js";
+import { isOwnSocialPost } from "./classify/ownPosts.js";
 import { getDb } from "./db.js";
 import {
   applyEnrichment,
@@ -71,14 +72,18 @@ function cmdStats(): void {
 // After the classification rules change, re-run over existing pages: fix kind, purge stored sensitive pages
 function cmdReclassify(): void {
   const db = getDb();
-  const pages = db.prepare("SELECT id, url, kind FROM pages").all() as Array<{
+  const pages = db.prepare("SELECT id, url, title, kind FROM pages").all() as Array<{
     id: number;
     url: string;
+    title: string | null;
     kind: string;
   }>;
   let changed = 0;
   let purged = 0;
+  let ownPosts = 0;
   const updateKind = db.prepare("UPDATE pages SET kind = ? WHERE id = ?");
+  // Own posts also lose is_knowledge, so a page already enriched in an earlier run can't be selected
+  const demoteOwn = db.prepare("UPDATE pages SET kind = 'noise', is_knowledge = 0 WHERE id = ?");
   const deleteVisits = db.prepare("DELETE FROM visits_log WHERE page_id = ?");
   const deletePage = db.prepare("DELETE FROM pages WHERE id = ?");
   db.transaction(() => {
@@ -88,13 +93,18 @@ function cmdReclassify(): void {
         deleteVisits.run(p.id);
         deletePage.run(p.id);
         purged++;
+      } else if (isOwnSocialPost(p.url, p.title)) {
+        demoteOwn.run(p.id);
+        ownPosts++;
       } else if (c.kind !== p.kind) {
         updateKind.run(c.kind, p.id);
         changed++;
       }
     }
   })();
-  console.log(`Reclassification complete: ${changed} pages updated, ${purged} sensitive pages purged (including their visit logs)`);
+  console.log(
+    `Reclassification complete: ${changed} pages updated, ${ownPosts} own social posts demoted, ${purged} sensitive pages purged (including their visit logs)`,
+  );
 }
 
 const cmd = process.argv[2];

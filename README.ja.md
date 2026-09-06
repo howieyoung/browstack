@@ -76,7 +76,7 @@ Extension ──────┘   (knowledge   (LLM      (art     (nameplate,  (
 git clone https://github.com/<you>/browstack.git
 cd browstack
 npm install                 # also creates src/shared/userConfig.ts from the template
-$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, personal noise domains
+$EDITOR src/shared/userConfig.ts   # your email, Chrome profile, noise domains, your own social handles
 
 npm run ingest              # import & classify your Chrome history (local only)
 npm run stats               # sanity check: classification stats + top candidates
@@ -151,7 +151,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 - ログイン中のユーザーセッションで動くため、Keychain（LLM/OpenAI/SMTP の秘密情報）が利用可能。
 - 予定時刻に Mac がスリープ中でも、次の復帰時に launchd が実行します。
 - 表紙レンダリングの失敗（例：OpenAI キー未設定）は発行をブロックしません——前号の表紙を再利用します。
-- LLM の一時的な失敗も実行を止めません：分類は 1 回自動リトライし、すでにエンリッチ済みの内容で発行されます。空の号が送られることはありません。
+- LLM の一時的な失敗も実行を止めません：分類はバッチ単位で実行され、各バッチが個別にリトライされます。それでも失敗したバッチはスキップされ全体を巻き込まず、エンリッチ済みの内容で発行されます。空の号が送られることはありません。
 - スケジュールは 3 回：土曜メイン（08:17）、同日リトライ（20:17）、翌日キャッチアップ（日曜 08:17）。一度発行が成功すれば、それ以降のスロットは自動スキップ。致命的な失敗は macOS 通知で知らせ、無音で失敗することはありません。（3 回目を追加した理由：同日の 2 回とも LLM 呼び出しがタイムアウトして丸ごと 1 週飛んだ実例があったため——分類呼び出しは今はバッチ分割＋各バッチ個別リトライになり発生しにくくなりましたが、翌日にもう一度チャンスがあっても損はなく、あなたの手を煩わせません。）
 - 毎日 09:37 の資格情報ハートビートが Claude CLI セッションを維持し、`claude /login` が再度必要になれば数日前に通知します。
 - 組み込みの品質ガード：抽出スタブ（300 字未満）と重複 SNS 投稿は自動降格。百科事典・辞書検索はそもそも対象外。
@@ -173,6 +173,7 @@ npm run schedule:weekly -- --day 1 --hour 9    # e.g. Mondays at 09:00 (--day 0�
 ## 編集原則
 
 - **知識性はハードゲート。** 芸能ゴシップ、宝くじ、ショッピングセール、映画の上映時間やチケット予約・予約、イベント申込、辞書的なクイック検索は、滞在時間に関わらず除外——*理解*ではなく*行動や購入*に関わるものはすべて。
+- **自分の投稿はアウトプットであって読書ではない。** 自分のアカウントを `ownSocialHandles` に登録すれば、あなたが投稿したもの（Threads・Instagram・Facebook・X・LinkedIn）は除外されます——自分の投稿は何度も読み返すので、滞在時間だけで測ると自分の文章がその週の「一番読んだもの」になってしまうからです。照合はアカウント単位の完全一致なので、あなたに言及しただけの投稿は他人の書いたものとして通常どおり採用されます。
 - **要約は原文の代わりになること。** 記事ごとに 3 つの要点（各 42 字以内）＋1 つのテイクアウェイ（32 字以内）。
 - **一冊はアーティファクト。** 固定パレット、セリフ体の題字、号数番号——美しさが開かせ、内容の質が読み終えさせる。
 
